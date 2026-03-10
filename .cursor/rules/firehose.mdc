@@ -1,0 +1,58 @@
+---
+description: Domain Kit Engineering — project context for all agents working in this repo
+globs:
+alwaysApply: true
+---
+
+# Domain Kit Engineering
+
+This repo defines the domain kit architecture for managing durable human-agent collaboration across multiple domains.
+
+## Essential reading
+
+Before making changes, read these files in order:
+
+1. `CLAUDE.md` — command taxonomy and workflow summary
+2. `orchestrator-architecture.md` — full system spec (commands, viewport, runtime, hooks, git conventions)
+3. `domain-convention.md` — what a domain is, how `.context/` is structured, lifecycle
+4. `distiller-spec.md` — how session artifacts become canonical memory and decisions
+5. `variety-agent-design.md` — cybernetics-grounded theoretical foundation (Ashby, Beer, VSM)
+
+## Command taxonomy
+
+Four commands, four concerns:
+
+- **`touch-domain`** — kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Objective.
+- **`open-kit`** — viewport launch. Opens a domain for interactive work. Transition from objective to subjective.
+- **`checkpoint`** — session capture. Structured snapshots during interactive work. Human-initiated.
+- **`distill`** — memory processing. Isolated post-session distillation. Objective, debiased.
+
+## Domain structure
+
+A domain is a folder with:
+- `README.md` — what the domain is
+- `.context/` — containing `PROFILE.md`, `MEMORY.md`, `DECISIONS.md`, `STATE.md`, `agent.md`, `sessions/`
+
+Read flow on entry: PROFILE → MEMORY → DECISIONS → STATE.
+Write flow on exit: checkpoints → distiller → MEMORY + DECISIONS → PROFILE (next touch --full).
+
+## Key design principles
+
+- The disk is the shared bus. Agents don't talk to each other in memory.
+- The distiller MUST run in isolated context (separate `claude -p` invocation) for debiasing.
+- Specs are environment-agnostic. Richard-specific settings live in `firehose.local.md`.
+- Domain kits are the basic unit of governance (see variety-agent-design.md).
+
+## Skills (Claude Code)
+
+Project-local skills under `.claude/skills/`:
+- `/touch-domain` — structural validation and scaffolding
+- `/touch-full-domain` — full touch with PROFILE.md regeneration
+- `/checkpoint` — session artifact capture
+- `/distill-domain` — distillation pipeline
+- `/domain-convention` — reference for domain layout
+
+## Current state
+
+Check `.context/STATE.md` for what's done, in progress, and next.
+Check `.context/DECISIONS.md` for architectural decisions and their rationale.

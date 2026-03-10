@@ -31,10 +31,19 @@
 
 ## Desktop Environment
 - OS: Linux Mint, MATE, X11
-- Editor: VS Code / Cursor
-- Agent runtime: Claude Code CLI + VS Code extension
+- Primary editor: Cursor (VS Code fork)
+- Agent runtime: Claude Code CLI + Cursor extension
+- Cowork (Claude desktop app) for spec work and design sessions
+
+## Model Access
+- Claude: via Claude Code CLI and Cursor extension (Anthropic direct)
+- Other models: LiteLLM gateway to OpenRouter
+  - Available for Cursor agent calls, comparison testing, and tasks where model diversity is useful
+  - Configuration: TBD (endpoint, API key location)
 
 ## Notes
 - fluffy.geekazoid.net is the primary server/NAS
 - All bare repos live under /mnt/user/git/ on fluffy
 - SSH access via root (key-based)
+- `cursor` CLI is in PATH (not `code` — Cursor, not VS Code)
+- Claude Code binary: ~/.local/share/claude/versions/ (compiled ELF, not npm)
