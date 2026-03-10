@@ -1,0 +1,23 @@
+{
+  "folders": [
+    { "path": "." },
+    { "path": ".context", "name": "Domain Context" }
+  ],
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Open Domain Context",
+        "type": "shell",
+        "command": "cursor .context/PROFILE.md .context/STATE.md .context/MEMORY.md .context/DECISIONS.md",
+        "presentation": { "reveal": "silent" },
+        "runOptions": { "runOn": "folderOpen" }
+      }
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "anthropic.claude-code"
+    ]
+  }
+}
