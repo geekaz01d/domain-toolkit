@@ -14,7 +14,7 @@ The system enforces clean separation between who reads and writes what:
 |-------|-------------------|-------------|-----------------|------------------|
 | **Working agent** | Never reads or writes. | Writes (append-only via `/checkpoint`). | Reads on entry. Never writes. | Written by CC runtime. Agent unaware. |
 | **Stager** (`stage-transcripts`) | Writes (extracts from JSONL). | Never touches. | Never touches. | Reads (source of truth). |
-| **Distiller** | Reads (primary input). | Reads (attention markers). | Writes (proposed or committed updates). | Appends `[FIREHOSE]` marker on completion. |
+| **Distiller** | Reads (primary input). | Reads (attention markers). | Writes (proposed or committed updates). | Appends `[DOMAIN-TOOLKIT]` marker on completion. |
 | **Human** | Can author directly (drop a .md into sessions/). | Can author directly. | Approves distiller proposals. Can edit directly. | Sees marker if resuming a distilled session. |
 
 The agent's job during a session is twofold: do the work, and optionally lay down checkpoints at important moments. The **transcript** (extracted from CC's native session JSONL) is the primary record — it captures everything including thinking blocks. Checkpoints are the human or agent saying "this moment matters" — attention markers, not the primary source.
@@ -39,7 +39,7 @@ The stager updates this on every run. If the JSONL has grown (session was contin
 
 ### Distillation marker
 
-When the distiller finishes processing a session, it appends a **`[FIREHOSE]` marker** directly to the CC session JSONL — a user-type message that serves three purposes:
+When the distiller finishes processing a session, it appends a **`[DOMAIN-TOOLKIT]` marker** directly to the CC session JSONL — a user-type message that serves three purposes:
 
 1. **Human sees it** when browsing or resuming the session in CC
 2. **Agent sees it** if the session is continued — knows prior content has been captured
@@ -48,7 +48,7 @@ When the distiller finishes processing a session, it appends a **`[FIREHOSE]` ma
 The marker format:
 
 ```
-[FIREHOSE] ───────────────────────────────────────────
+[DOMAIN-TOOLKIT] ─────────────────────────────────────
 ⚑ Session distilled at <timestamp>
 
 Content above this line has been processed into
@@ -65,7 +65,7 @@ This is appended as a regular user message (`isMeta: false`) so it renders visib
 
 If a session is continued after distillation:
 
-1. New content lands in the JSONL after the `[FIREHOSE]` marker
+1. New content lands in the JSONL after the `[DOMAIN-TOOLKIT]` marker
 2. The stager detects the JSONL has grown (size > recorded size) and re-extracts the full transcript
 3. The distiller, on its next run, sees the marker and knows to process only content after it
 
@@ -73,7 +73,7 @@ If a session is continued after distillation:
 
 The session JSONL corpus is the durable asset. To re-distill:
 
-- Remove the `[FIREHOSE]` marker from the JSONL (or the stager entry from `.staged-sessions`)
+- Remove the `[DOMAIN-TOOLKIT]` marker from the JSONL (or the stager entry from `.staged-sessions`)
 - The distiller will reprocess the full session
 
 Useful when the distiller prompt has improved, a better model is available, or canonical files were corrupted.
@@ -98,21 +98,21 @@ Checkpoints (`/checkpoint`) are **attention markers**, not the primary source ma
 - Conflict report in `DISTILL-CONFLICTS.md` (if proposed changes contradict existing canonical material)
 
 **Side effects:**
-- `[FIREHOSE]` marker appended to the CC session JSONL (high-water mark)
+- `[DOMAIN-TOOLKIT]` marker appended to the CC session JSONL (high-water mark)
 - `.staged-sessions` updated to reflect processed state
 
 ## Trigger Modes
 
 | Mode | Trigger | Execution Context |
 |------|---------|-------------------|
-| **Scheduled** | Cron job detects staged transcripts without `[FIREHOSE]` markers | System-level. No interactive session. Primary path. |
+| **Scheduled** | Cron job detects staged transcripts without `[DOMAIN-TOOLKIT]` markers | System-level. No interactive session. Primary path. |
 | **Manual** | `distill <domain>` or `/distill-domain` skill | From any terminal or session. Human-initiated. |
 | **Batch** | `distill --all` | Iterates registry. Processes all domains with pending work. |
 | **Explicit close** | `/checkpoint --close` during a session | Human signal that session is done — triggers immediate distillation. |
 
-The **scheduled cron job** is the primary trigger. It walks the domain registry, checks each domain's `.context/sessions/` for transcripts that haven't been fully distilled (by scanning the source JSONLs for `[FIREHOSE]` markers), and runs distillation against those domains. This decouples distillation from the working session entirely.
+The **scheduled cron job** is the primary trigger. It walks the domain registry, checks each domain's `.context/sessions/` for transcripts that haven't been fully distilled (by scanning the source JSONLs for `[DOMAIN-TOOLKIT]` markers), and runs distillation against those domains. This decouples distillation from the working session entirely.
 
-The signal is: **staged transcripts exist whose source JSONLs have content after (or without) a `[FIREHOSE]` marker**.
+The signal is: **staged transcripts exist whose source JSONLs have content after (or without) a `[DOMAIN-TOOLKIT]` marker**.
 
 ## Review Gate
 
@@ -282,7 +282,7 @@ The distiller surfaces conflicts explicitly in `DISTILL-CONFLICTS.md`. It does n
 3. Read any checkpoint files for attention markers
 4. Run the selected strategy
 5. Write updated canonical files (with appropriate frontmatter per review mode)
-6. Append `[FIREHOSE]` distillation marker to the CC session JSONL
+6. Append `[DOMAIN-TOOLKIT]` distillation marker to the CC session JSONL
 7. Write `DISTILL-CONFLICTS.md` if conflicts were detected
 
 ### Human-authored session notes
@@ -311,7 +311,7 @@ Invocation:
 
 ```bash
 cd /path/to/domain && claude -p \
-  --system-prompt-file ~/sources/firehose/distiller-prompt.md \
+  --system-prompt-file ~/sources/domain-toolkit/distiller-prompt.md \
   "Distill this domain"
 ```
 
@@ -321,7 +321,7 @@ Print mode (`-p`), fresh session, no shared context. The distiller reads `.conte
 
 A cron job (`bin/stage-transcripts`) runs periodically and:
 
-1. Reads the domain registry (`firehose/REGISTRY.md`)
+1. Reads the domain registry (`~/.claude/domain-toolkit/REGISTRY.md`)
 2. For each domain, reads `.context/sessions/session-index.jsonl`
 3. For each session, checks if the source JSONL has grown since last staging
 4. Extracts/re-extracts transcripts (with thinking blocks) into `.transcript.md` files
@@ -333,9 +333,9 @@ This is a lightweight I/O operation — no model calls, no Claude invocations.
 
 A separate cron job runs periodically (e.g., hourly or nightly) and:
 
-1. Reads the domain registry (`firehose/REGISTRY.md`)
+1. Reads the domain registry (`~/.claude/domain-toolkit/REGISTRY.md`)
 2. For each domain, scans `.context/sessions/` for `.transcript.md` files
-3. Checks the source JSONLs for `[FIREHOSE]` markers — sessions with content after (or without) a marker need distillation
+3. Checks the source JSONLs for `[DOMAIN-TOOLKIT]` markers — sessions with content after (or without) a marker need distillation
 4. Invokes the distiller for domains with pending work
 5. Logs results
 
@@ -364,12 +364,12 @@ This requires no interactive session, no running IDE, no parent process. The sig
 
 ## Design Principles
 
-1. **CC's JSONL is the source of truth.** Session JSONL files are the durable corpus — written continuously by CC, never modified by firehose except to append `[FIREHOSE]` markers. Transcripts are derived artifacts that can always be re-extracted.
+1. **CC's JSONL is the source of truth.** Session JSONL files are the durable corpus — written continuously by CC, never modified by domain-toolkit except to append `[DOMAIN-TOOLKIT]` markers. Transcripts are derived artifacts that can always be re-extracted.
 2. **Transcripts over checkpoints.** The full session record (including thinking blocks) is the primary input for distillation. Checkpoints are attention markers — valuable but optional.
 3. **Objective distillation.** The distiller forms its own view before considering the human and agent's perspectives. Assumes either may have lost the plot. The best truth wins.
 4. **Staged, not direct.** Agents never write to canonical files. The distiller writes with an approval gate (frontmatter `status: proposed`).
 5. **Standalone.** The distiller is not part of the agent or the orchestrator. It's a separate tool that reads and writes to the filesystem.
 6. **Strategy is configuration.** The interface contract doesn't change when you swap strategies. Simple, careful, adversarial, custom — same inputs, same outputs.
-7. **Human-compatible.** The filesystem is the interface. Humans can author session notes, review proposed diffs, and approve changes using their own tools. The `[FIREHOSE]` marker is visible in CC's conversation view.
+7. **Human-compatible.** The filesystem is the interface. Humans can author session notes, review proposed diffs, and approve changes using their own tools. The `[DOMAIN-TOOLKIT]` marker is visible in CC's conversation view.
 8. **Conservative with decisions.** DECISIONS.md is append-only. The distiller adds but never removes or modifies. Revisit conditions are flagged, not acted upon.
 9. **Provenance preserved.** Three perspectives (human, agent, distiller) coexist with clear provenance. Canonical files trace back to source sessions. The raw JSONL is always available for audit or re-derivation.

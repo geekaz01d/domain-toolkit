@@ -1,6 +1,6 @@
 ---
 name: distill-domain
-description: Run the firehose distillation pipeline for a single domain by turning session artifacts into proposed MEMORY.md and DECISIONS.md updates.
+description: Run the domain-toolkit distillation pipeline for a single domain by turning session artifacts into proposed MEMORY.md and DECISIONS.md updates.
 disable-model-invocation: true
 context: fork
 model: opus

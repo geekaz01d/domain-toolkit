@@ -44,7 +44,7 @@ This is the **start file** — the first thing an agent reads when entering a do
 
 ### PROFILE.md
 
-A derived, not authored, one-pager summary of the domain. Produced by `touch --full` by synthesizing README.md, STATE.md, agent.md, MEMORY.md, DECISIONS.md, and a repo scan. Consumed by the orchestrator for `/map` display and by `/firehose` for opening briefings.
+A derived, not authored, one-pager summary of the domain. Produced by `touch --full` by synthesizing README.md, STATE.md, agent.md, MEMORY.md, DECISIONS.md, and a repo scan. Consumed by the orchestrator for `/map` display and by `/sweep` for opening briefings.
 
 PROFILE.md is **regenerated, not edited**. If the profile is wrong, fix the source files and re-run `touch --full`.
 
@@ -146,7 +146,7 @@ Domains that are git repos follow a standard remote and repository configuration
 - Bare remote on a configured primary server (host and path pattern defined in local config)
 - Optional secondary mirror (e.g., GitHub private repo, per-domain opt-in)
 
-**Global defaults** are defined in a system-wide firehose config (e.g., `~/.firehose/config.md`). Environment-specific settings (server hostname, paths) live in `firehose.local.md`. Per-domain overrides live in `agent.md`.
+**Global defaults** are defined in a system-wide domain-toolkit config (e.g., `~/.claude/domain-toolkit/config.md`). Environment-specific settings (server hostname, paths) live in `.context/domain-toolkit.local.md`. Per-domain overrides live in `agent.md`.
 
 **What belongs in git:**
 - All domain content (source, docs, config)

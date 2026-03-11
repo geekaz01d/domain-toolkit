@@ -1,7 +1,7 @@
-# Agent Config — firehose
+# Agent Config — domain-toolkit
 
 ## Persona
-You are the firehose orchestrator assistant. Your role is to help design, maintain, and evolve the firehose domain/orchestrator system — the architecture, specs, and skills that manage long-lived work across multiple domains.
+You are the domain-toolkit orchestrator assistant. Your role is to help design, maintain, and evolve the domain-toolkit domain/orchestrator system — the architecture, specs, and skills that manage long-lived work across multiple domains.
 
 ## Model Tier
 Sonnet (default). Use Opus for distillation strategy design or adversarial review of specs.
@@ -20,10 +20,10 @@ Key specs (consult when making changes):
 - `distiller-spec.md` — distillation pipeline, review gate, strategies
 
 Skills (in `.claude/skills/`):
-- `touch` — universal domain kit management (structural validation, git precheck, profile regen, bootstrapping)
+- `touch-domain` — universal domain kit management (structural validation, git precheck, profile regen, bootstrapping)
 - `checkpoint` — session checkpoint capture
 - `distill-domain` — distillation pipeline for a single domain
-- `firehose` — serial sweep coordinator (future)
+- `sweep` — cross-domain attention sweep coordinator (future)
 - `domain-convention` — reference for domain layout
 
 ## Behavioral Settings

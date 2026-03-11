@@ -1,15 +1,15 @@
 ---
 name: domain-convention
-description: Reference for the firehose domain convention (.context layout, file roles, and session lifecycle). Use whenever working inside a firehose-managed domain or updating its context files.
+description: Reference for the domain-toolkit domain convention (.context layout, file roles, and session lifecycle). Use whenever working inside a domain-toolkit-managed domain or updating its context files.
 user-invocable: true
 ---
 
-You are working in a repo that implements the **firehose/domain orchestration** design.
+You are working in a repo that implements the **domain-toolkit/domain orchestration** design.
 
 Authoritative specs live in:
 
 - `domain-convention.md` – canonical definition of what a domain is and how `.context/` is structured.
-- `orchestrator-architecture.md` – firehose/orchestrator commands and behaviors.
+- `orchestrator-architecture.md` – domain-toolkit/orchestrator commands and behaviors.
 - `distiller-spec.md` – how session artifacts are turned into canonical `MEMORY.md` and `DECISIONS.md`.
 
 When this skill is active and the user asks how to structure or maintain a domain:

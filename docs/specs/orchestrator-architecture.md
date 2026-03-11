@@ -98,7 +98,7 @@ touch-domain -y <path>           # suppress prompts (auto-confirm safe operation
 
 Domains that are git repos follow a standard remote configuration, defined globally with per-domain overrides.
 
-**Global defaults** (configured in `~/.firehose/config.md` or similar):
+**Global defaults** (configured in `~/.claude/domain-toolkit/config.md` or similar):
 - **Origin**: bare repo on a configured primary server (host, path pattern defined in local config)
 - **Mirror**: optional secondary remote (e.g., GitHub private repo, per-domain opt-in)
 - **Branch conventions**: TBD per domain needs
@@ -190,13 +190,13 @@ Display and manage the domain registry.
 /map --remove <domain>     # unregister a domain
 ```
 
-### Firehose (future)
+### Sweep (future)
 
 A sweep across all domains that surfaces what needs attention. This is a System 4 function (in VSM terms) — intelligence, looking outward and forward. Not yet specified in detail.
 
 **Intent:** scan the registry, run `touch-domain --no-touchy` across all domains, and produce a prioritized briefing: "Here's what really needs your attention right now." Surfaces stale profiles, unprocessed sessions, met revisit conditions, git concerns, domains that haven't been touched in a while.
 
-**Not the same as** sequentially opening every domain for interactive work. The firehose is objective attention-direction. `open-kit` is subjective engagement. The firehose tells you *which* kit to open.
+**Not the same as** sequentially opening every domain for interactive work. The sweep is objective attention-direction. `open-kit` is subjective engagement. The sweep tells you *which* kit to open.
 
 **Design deferred** until the core commands (`touch-domain`, `open-kit`, `checkpoint`, `distill`) are proven in daily use.
 
@@ -313,7 +313,7 @@ Implementation: headless `claude -p` invocations for non-interactive work (touch
 All orchestrator state is disk-backed:
 
 - **Registry**: domain list and metadata
-- **Sweep state**: firehose progress (which domains done, which pending, current phase)
+- **Sweep state**: sweep progress (which domains done, which pending, current phase)
 - **Session state**: checkpoints within a domain session
 - **Canonical context**: MEMORY.md, DECISIONS.md, PROFILE.md
 
@@ -399,7 +399,7 @@ Claude Code hooks provide deterministic automation at session lifecycle points:
 - Review gate workflow for `.proposed` files
 
 **Phase 3 — Attention Direction:**
-- Firehose sweep: scan registry, surface what needs attention, prioritized briefing
+- Sweep: scan registry, surface what needs attention, prioritized briefing
 - Cross-domain search across all `.context/` files
 - Sweep analytics (time per domain, decision velocity, etc.)
 - Workspace file evolution: touch updates which files are surfaced based on current concerns

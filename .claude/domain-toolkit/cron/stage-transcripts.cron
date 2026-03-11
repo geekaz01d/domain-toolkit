@@ -1,0 +1,4 @@
+# Stage Claude Code session transcripts into domain .context/sessions/
+# Install: crontab -l | cat - ~/.claude/domain-toolkit/cron/stage-transcripts.cron | crontab -
+# Replace __TOOLKIT_ROOT__ with ~/.claude/domain-toolkit and __HOME__ with your home path.
+*/15 * * * * __TOOLKIT_ROOT__/bin/stage-transcripts >> __HOME__/.claude/domain-toolkit/stage-transcripts.log 2>&1

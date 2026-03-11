@@ -1,4 +1,4 @@
-# Decisions — firehose
+# Decisions — domain-toolkit
 
 ## 2026-03-09: Disk as shared bus (no in-memory subagent communication)
 - **Context**: Designing subagent communication model for the orchestrator
@@ -6,10 +6,10 @@
 - **Deciding factors**: Interruptibility and resumability by design; any process can crash and resume from last checkpoint; clean context isolation between domains
 - **Revisit if**: Performance bottleneck from filesystem I/O becomes significant, or if real-time coordination between subagents is needed
 
-## 2026-03-09: Serial firehose sweep (not parallel)
-- **Context**: How to structure domain sweeps in `/firehose`
+## 2026-03-09: Serial domain sweep (not parallel)
+- **Context**: How to structure domain sweeps in `/sweep`
 - **Alternatives considered**: Parallel domain processing
-- **Deciding factors**: Full human attention per domain; interactive review phase requires focus; parallelism available for `/touch --full` where no interaction needed
+- **Deciding factors**: Full human attention per domain; interactive review phase requires focus; parallelism available for `/touch-domain --full` where no interaction needed
 - **Revisit if**: Volume of domains makes serial sweeps impractical
 
 ## 2026-03-09: Skills over scripts (Claude Code project-local skills)
@@ -25,7 +25,7 @@
 - **Revisit if**: Auto-approve mode becomes trusted enough for low-stakes domains
 
 ## 2026-03-09: Window-per-domain tmux model
-- **Context**: UI layout for firehose sessions
+- **Context**: UI layout for domain-toolkit sessions
 - **Alternatives considered**: Pane reuse, single-window with content swap
 - **Deciding factors**: tmux tab bar becomes sweep history; no fragile pane reuse; completed domains visible as tabs; natural navigation
 - **Revisit if**: Tab bar becomes cluttered with many domains
@@ -50,9 +50,9 @@
 - **Revisit if**: Claude Code provides a native "isolated subagent" primitive that's cleaner than `claude -p`
 
 ## 2026-03-10: Agent teams NOT used for cross-domain orchestration
-- **Context**: Evaluated Claude Code agent teams (experimental) for firehose sweep coordination
+- **Context**: Evaluated Claude Code agent teams (experimental) for domain sweep coordination
 - **Alternatives considered**: Agent team lead coordinates domain teammates
-- **Deciding factors**: Agent teams share a working directory and task list — designed for multiple agents on ONE problem, not isolation between domains. Messaging system would allow domain context leakage. Agent teams are appropriate within a single domain (e.g., parallel research) but not as the firehose sweep mechanism.
+- **Deciding factors**: Agent teams share a working directory and task list — designed for multiple agents on ONE problem, not isolation between domains. Messaging system would allow domain context leakage. Agent teams are appropriate within a single domain (e.g., parallel research) but not as the domain sweep mechanism.
 - **Revisit if**: Agent teams gain per-teammate working directory isolation
 
 ## 2026-03-10: touch-domain as universal modal command
@@ -64,19 +64,19 @@
 ## 2026-03-10: Git-aware domains with standard remote conventions
 - **Context**: Domains should be version-controlled by default. Git provides an audit trail for agentic changes, ensures work is not lost, and enables the bare-repo-on-server convention Richard uses across projects.
 - **Alternatives considered**: No git integration (leave it to the user), per-domain opt-in only
-- **Deciding factors**: Git is assumed for all domains unless explicitly exempted. Global defaults define the standard setup (bare repo on configured primary server, optional secondary mirror). Per-domain overrides in agent.md. Touch checks git status as part of housekeeping — surfaces concerns, doesn't silently fix. `touch-domain --new` initializes git as part of bootstrapping. Environment-specific settings (server hostnames, paths) live in `firehose.local.md`, not in the portable spec.
+- **Deciding factors**: Git is assumed for all domains unless explicitly exempted. Global defaults define the standard setup (bare repo on configured primary server, optional secondary mirror). Per-domain overrides in agent.md. Touch checks git status as part of housekeeping — surfaces concerns, doesn't silently fix. `touch-domain --new` initializes git as part of bootstrapping. Environment-specific settings (server hostnames, paths) live in `.context/domain-toolkit.local.md`, not in the portable spec.
 - **Revisit if**: Domains emerge that genuinely shouldn't be git repos (ephemeral scratch domains?); bare repo convention becomes impractical for some repo types
 
 ## 2026-03-10: Command taxonomy — four concerns, four commands
-- **Context**: Clarifying the command structure as the system scope expanded beyond the original "firehose" sweep concept. Need clean separation between kit management, viewport launching, session capture, and memory processing.
-- **Alternatives considered**: Everything under `/firehose` umbrella, separate commands per function with inconsistent naming
+- **Context**: Clarifying the command structure as the system scope expanded beyond the original "domain-toolkit" sweep concept. Need clean separation between kit management, viewport launching, session capture, and memory processing.
+- **Alternatives considered**: Everything under `/sweep` umbrella, separate commands per function with inconsistent naming
 - **Deciding factors**: Each command maps to a distinct concern and operational posture. `touch-domain` = objective kit management. `open-kit` = subjective viewport launch (with `--cursor`, `--terminal` as viewport targets). `checkpoint` = in-session capture. `distill` = isolated post-session processing. Clean separation means each can evolve independently. `touch-domain` and `distill` are objective (operate from outside). `checkpoint` is subjective (operates from inside). `open-kit` is the transition between them.
 - **Revisit if**: Commands need to compose in ways the separation prevents; a fifth concern emerges that doesn't fit
 
-## 2026-03-10: Firehose reframed as attention-direction (future feature)
-- **Context**: "Firehose" was originally the name for the whole system and the serial sweep command. As the command taxonomy crystallized, firehose became one feature among several — and a different kind of feature: not kit management or viewport launching, but strategic scanning across all domains to surface what needs attention.
-- **Alternatives considered**: Keep firehose as the system name, implement sweep immediately
-- **Deciding factors**: The core commands (touch-domain, open-kit, checkpoint, distill) need to be proven in daily use before building the sweep. Firehose as attention-direction is a System 4 function (VSM) — intelligence, looking outward and forward. Different from System 2/3 (coordination/control, which is touch-domain) and System 1 (operations, which is open-kit + checkpoint). Design deferred until core is stable.
+## 2026-03-10: Sweep reframed as attention-direction (future feature)
+- **Context**: "Firehose" was originally the name for the whole system and the serial sweep command. As the command taxonomy crystallized, the sweep became one feature among several — and a different kind of feature: not kit management or viewport launching, but strategic scanning across all domains to surface what needs attention.
+- **Alternatives considered**: Keep "firehose" as the system name, implement sweep immediately
+- **Deciding factors**: The core commands (touch-domain, open-kit, checkpoint, distill) need to be proven in daily use before building the sweep. The sweep as attention-direction is a System 4 function (VSM) — intelligence, looking outward and forward. Different from System 2/3 (coordination/control, which is touch-domain) and System 1 (operations, which is open-kit + checkpoint). Design deferred until core is stable.
 - **Revisit if**: The need for cross-domain scanning becomes urgent before core commands are proven
 
 ## 2026-03-10: Domain kit as foundational concept (variety-agent-design lineage)

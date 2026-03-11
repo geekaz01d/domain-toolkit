@@ -1,12 +1,12 @@
 # Domain Kit Engineering
 
-This repo defines the domain kit architecture for managing durable human-agent collaboration across multiple domains. See `variety-agent-design.md` for the cybernetics-grounded theoretical foundation.
+This repo defines the domain kit architecture for managing durable human-agent collaboration across multiple domains.
 
 Key design documents:
 
-- `orchestrator-architecture.md` – commands (`touch-domain`, `open-kit`, `checkpoint`, `distill`), viewport, runtime, hooks, git conventions.
-- `domain-convention.md` – what a domain is, how `.context/` is structured, git convention, lifecycle.
-- `distiller-spec.md` – how session artifacts become canonical `MEMORY.md` and `DECISIONS.md`.
+- `docs/specs/orchestrator-architecture.md` – commands (`touch-domain`, `open-kit`, `checkpoint`, `distill`), viewport, runtime, hooks, git conventions.
+- `docs/specs/domain-convention.md` – what a domain is, how `.context/` is structured, git convention, lifecycle.
+- `docs/specs/distiller-spec.md` – how session artifacts become canonical `MEMORY.md` and `DECISIONS.md`.
 
 ## Command taxonomy
 
@@ -28,16 +28,16 @@ Key design documents:
 
 This project includes project-local skills under `.claude/skills/` that implement domain kit behavior:
 
+- `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal.
+- `/open-kit` – viewport launch: opens a domain in Cursor or terminal Claude session.
+- `/checkpoint` – session capture: writes structured checkpoints into `.context/sessions/`.
+- `/distill-domain` – distillation: transforms session artifacts into canonical `MEMORY.md` / `DECISIONS.md`.
 - `/domain-convention` – reference for the domain layout and file roles.
-- `/touch-domain` – structural validation and scaffolding for a domain's `.context/` directory.
-- `/touch-full-domain` – full touch with PROFILE.md and workspace file generation.
-- `/checkpoint` – writes structured session checkpoints and optional memory drafts into `.context/sessions/`.
-- `/distill-domain` – runs the distillation pipeline for a single domain, producing `.proposed` updates.
-- `/firehose` – (future) coordinates attention-direction sweep across domains.
+- `/sweep` – (future) cross-domain attention sweep.
 
 ## Workflow
 
-1. `touch-domain <path>` — validate or bootstrap a domain.
-2. `open-kit <domain> --cursor` — open the domain viewport for interactive work.
+1. `/touch-domain <path>` — validate or bootstrap a domain.
+2. `/open-kit <domain> --cursor` — open the domain viewport for interactive work.
 3. During work, use `/checkpoint` and `/checkpoint --close` to capture session artifacts.
-4. After sessions, run `distill <domain>` to propose updates to `MEMORY.md` and `DECISIONS.md`.
+4. After sessions, run `/distill-domain <domain>` to propose updates to `MEMORY.md` and `DECISIONS.md`.

@@ -1,15 +1,15 @@
-# Firehose Local Environment Config
+# Domain Toolkit Local Environment Config
 #
 # This file contains environment-specific settings for THIS installation
-# of the firehose system. It is NOT part of the portable spec.
-# Each firehose user would have their own version of this file.
+# of the domain-toolkit system. It is NOT part of the portable spec.
+# Each domain-toolkit user would have their own version of this file.
 
 ## Git Remote Conventions
 
 ### Primary bare repo (origin)
 - Host: root@fluffy.geekazoid.net
 - Path pattern: /mnt/user/git/<repository>.git
-- Example: root@fluffy.geekazoid.net:/mnt/user/git/firehose.git
+- Example: root@fluffy.geekazoid.net:/mnt/user/git/domain-toolkit.git
 
 ### Secondary mirror (optional, per-domain opt-in)
 - Provider: GitHub (private repos)
@@ -18,7 +18,7 @@
 ## Known Domains
 
 ### Touched (confirmed)
-- firehose — this repo
+- domain-toolkit — this repo
 - cashflow
 - systems-architectures
 - systems-geekazoid

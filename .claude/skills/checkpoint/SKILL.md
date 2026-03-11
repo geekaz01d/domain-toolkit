@@ -16,13 +16,13 @@ This skill writes **structured session artifacts** under `.context/sessions/` fo
 
 ## Determine the domain root and context
 
-1. Assume the current working directory is inside a firehose domain.
+1. Assume the current working directory is inside a domain-toolkit domain.
 2. Walk up from the current directory until you find a folder that contains:
    - `README.md`
    - `.context/` directory
 3. Treat that folder as the **domain root**.
 
-If no such folder exists, explain that this skill expects to be run inside a firehose domain and do nothing else.
+If no such folder exists, explain that this skill expects to be run inside a domain-toolkit domain and do nothing else.
 
 ## Session file management
 

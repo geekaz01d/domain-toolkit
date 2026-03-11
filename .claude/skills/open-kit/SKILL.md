@@ -24,8 +24,8 @@ Normalize to an absolute domain root path before proceeding.
 
 Before opening, validate:
 
-1. **Domain exists**: The path must exist and contain `.context/agent.md`. If not, tell the user: "Not a domain. Bootstrap it with `/touch --new <path>`."
-2. **Workspace file exists**: For `--cursor`, check that `<name>.code-workspace` exists at the domain root. If missing, tell the user: "No workspace file. Run `/touch --full <path>` to generate one."
+1. **Domain exists**: The path must exist and contain `.context/agent.md`. If not, tell the user: "Not a domain. Bootstrap it with `/touch-domain --new <path>`."
+2. **Workspace file exists**: For `--cursor`, check that `<name>.code-workspace` exists at the domain root. If missing, tell the user: "No workspace file. Run `/touch-domain --full <path>` to generate one."
 
 Do NOT run a full touch or fix problems — just check and report. The user decides what to do.
 

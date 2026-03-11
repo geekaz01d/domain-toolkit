@@ -1,0 +1,8 @@
+# Local environment config — personal, not shared
+.context/*.local.md
+
+# Session artifacts — generated, not shared
+.context/sessions/
+
+# Cursor workspace file — generated, not shared
+domain-toolkit.code-workspace

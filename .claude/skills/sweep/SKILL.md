@@ -1,12 +1,12 @@
 ---
-name: firehose
-description: Coordinate a serial sweep across firehose domains using the domain registry, guiding the user to work one domain at a time with checkpoints and distillation.
+name: sweep
+description: Coordinate a serial sweep across registered domains using the domain registry, guiding the user to work one domain at a time with checkpoints and distillation.
 disable-model-invocation: true
 model: haiku
 argument-hint: "[optional-registry-path]"
 ---
 
-You are implementing the **`/firehose`** command from `orchestrator-architecture.md` as a Claude Code skill.
+You are implementing the **`/sweep`** command from `orchestrator-architecture.md` as a Claude Code skill.
 
 This skill does **not** run all work automatically. Instead, it:
 
@@ -18,19 +18,19 @@ This skill does **not** run all work automatically. Instead, it:
 
 1. By default, assume the registry is at:
 
-   - `firehose/REGISTRY.md` relative to the repository root.
+   - `~/.claude/domain-toolkit/REGISTRY.md`
 
 2. If `$ARGUMENTS` contains a path, treat `$0` as the registry file path instead.
 
 3. The registry should be a human-readable markdown file, for example:
 
    ```markdown
-   # Firehose Domain Registry
+   # Domain Registry
 
    | Domain | Path | Status | Last touched | Notes |
    |--------|------|--------|--------------|-------|
    | app-core | /path/to/app-core | pending | 2026-03-01 | Initial sweep not run |
-   | billing | /path/to/billing | active | 2026-03-03 | In progress | 
+   | billing | /path/to/billing | active | 2026-03-03 | In progress |
    | infra | /path/to/infra | complete | 2026-02-20 | |
    ```
 
@@ -38,16 +38,16 @@ This skill does **not** run all work automatically. Instead, it:
 
 ## Status semantics
 
-- `pending`: Domain has not yet been swept in the current firehose run.
+- `pending`: Domain has not yet been swept in the current sweep run.
 - `active`: Domain currently being worked on.
 - `complete`: Domain sweep finished for this run.
 - `deferred`: Domain intentionally skipped for now.
 
-You may add a separate “Sweep ID” section if the user wants multiple historical sweeps; for now, keep it simple.
+You may add a separate "Sweep ID" section if the user wants multiple historical sweeps; for now, keep it simple.
 
 ## Sweep behavior
 
-When the user invokes `/firehose`:
+When the user invokes `/sweep`:
 
 1. **Load the registry**
    - Read the registry file and parse the table of domains.
@@ -78,7 +78,7 @@ When the user invokes `/firehose`:
    - When the user indicates that work on the active domain is done, you should:
      - Mark the domain `complete` (or `deferred` if they explicitly want to skip it).
      - Clear the `active` status.
-     - Suggest re-running `/firehose` to move to the next domain.
+     - Suggest re-running `/sweep` to move to the next domain.
 
 ## What this skill does not do
 
@@ -86,5 +86,5 @@ When the user invokes `/firehose`:
 - It does **not** itself perform distillation or editing inside domains.
 - It does **not** attempt to manage tmux layouts; that can be handled by external scripts if desired.
 
-Instead, it acts as the **coordinator and status tracker** for a serial firehose sweep, using the registry as the single source of truth and leaning on other skills (`/touch-domain`, `/touch-full-domain`, `/checkpoint`, `/distill-domain`) for per-domain work.
+Instead, it acts as the **coordinator and status tracker** for a serial domain sweep, using the registry as the single source of truth and leaning on other skills (`/touch-domain`, `/touch-full-domain`, `/checkpoint`, `/distill-domain`) for per-domain work.
 

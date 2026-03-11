@@ -40,7 +40,7 @@ Write flow on exit: checkpoints → distiller → MEMORY + DECISIONS → PROFILE
 
 - The disk is the shared bus. Agents don't talk to each other in memory.
 - The distiller MUST run in isolated context (separate `claude -p` invocation) for debiasing.
-- Specs are environment-agnostic. Richard-specific settings live in `firehose.local.md`.
+- Specs are environment-agnostic. Richard-specific settings live in `.context/domain-toolkit.local.md`.
 - Domain kits are the basic unit of governance (see variety-agent-design.md).
 
 ## Skills (Claude Code)

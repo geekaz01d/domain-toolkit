@@ -1,12 +1,12 @@
 ---
-name: touch
+name: touch-domain
 description: "Universal domain kit management: structural validation, git precheck, profile regeneration, or new domain bootstrapping. Modal — inspects state and picks the right action."
 argument-hint: "[--full | --new | --all | --no-touchy | -y] [domain-path]"
 ---
 
 You are implementing the **`touch-domain`** command from `orchestrator-architecture.md`. This is the universal entry point for any domain interaction — modal, flag-driven, and extensible.
 
-Read `orchestrator-architecture.md` (the `touch-domain` section and `Git Conventions` subsection) and `domain-convention.md` for canonical reference. Read `firehose.local.md` for environment-specific git remote conventions.
+Read `orchestrator-architecture.md` (the `touch-domain` section and `Git Conventions` subsection) and `domain-convention.md` for canonical reference. Read `.context/domain-toolkit.local.md` for environment-specific git remote conventions.
 
 ## Argument Parsing
 
@@ -40,7 +40,7 @@ If the domain path exists, check its git state. This runs **before** any touch l
 | **Behind** | Remote is ahead of local | **Block all writes.** Prompt: "Canonical version is on the server. Pull first or work on the server copy?" |
 | **Ahead** | Local has unpushed commits | **Proceed** with touch. Surface concern. Prompt to push (unless `-y`, which auto-confirms). |
 | **Clean** | In sync with remote | **Proceed** normally. |
-| **No remote** | `.git/` exists but no remote `origin` | **Proceed** with touch. Prompt to create bare remote per `firehose.local.md` conventions (unless `-y`, which auto-confirms). If `agent.md` contains `git_remote: none` or `git_remote: local-only`, note it informationally instead. |
+| **No remote** | `.git/` exists but no remote `origin` | **Proceed** with touch. Prompt to create bare remote per `.context/domain-toolkit.local.md` conventions (unless `-y`, which auto-confirms). If `agent.md` contains `git_remote: none` or `git_remote: local-only`, note it informationally instead. |
 | **Not a repo** | No `.git/` directory | **Proceed** with touch. Prompt to initialize git (unless `-y`, which auto-confirms). If `agent.md` exempts from git, note it informationally. |
 
 **Implementation:** Use `git status`, `git remote -v`, `git rev-list --left-right --count HEAD...@{upstream}` (or similar) to determine the state. Handle missing upstream gracefully.
@@ -52,7 +52,7 @@ If the domain path exists, check its git state. This runs **before** any touch l
 Also check and report:
 - Uncommitted changes (staged or unstaged)
 - Detached HEAD, mid-rebase, or merge conflict state
-- Whether the remote matches `firehose.local.md` conventions
+- Whether the remote matches `.context/domain-toolkit.local.md` conventions
 
 ## Step 2: Mode Dispatch
 
@@ -118,7 +118,7 @@ New domain bootstrapping. The path may or may not exist yet.
 5. Capture the onboarding conversation as the first session artifact in `.context/sessions/`
 6. Initialize git:
    - `git init`
-   - Prompt to create bare repo on the server per `firehose.local.md` (unless `-y` auto-confirms)
+   - Prompt to create bare repo on the server per `.context/domain-toolkit.local.md` (unless `-y` auto-confirms)
    - Configure origin remote
    - Initial commit with scaffolding
 7. Run `--full` logic to generate PROFILE.md and `domain.code-workspace`
@@ -128,7 +128,7 @@ New domain bootstrapping. The path may or may not exist yet.
 
 Sweep the entire domain registry with `--full` touch on each domain.
 
-1. Read `REGISTRY.md` (or `firehose/REGISTRY.md`) to get the list of known domains
+1. Read `~/.claude/domain-toolkit/REGISTRY.md` to get the list of known domains
 2. Count the domains and **always warn**: "This will run a full touch on N domains (model call per domain). Proceed?" This prompt is **never suppressed** — not by `-y`, not by automation. The user must confirm.
 3. If confirmed, iterate through each domain and run `--full` logic on it
 4. If `--no-touchy` is active, do a dry-run sweep: report what each domain's full touch would find, but write nothing
