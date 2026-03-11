@@ -1,0 +1,6 @@
+# Run distillation on domains with pending (undistilled) transcripts
+# Requires: claude CLI in PATH, firehose distiller prompt at __FIREHOSE_ROOT__/distiller-prompt.md
+# Install: crontab -l | cat - cron/distill.cron | crontab -
+# Localize __FIREHOSE_ROOT__ and __HOME__ before installing.
+# Note: offset from stage-transcripts.cron (runs at :7) to avoid overlap
+37 * * * * __FIREHOSE_ROOT__/bin/distill-pending >> __HOME__/.firehose/distill.log 2>&1

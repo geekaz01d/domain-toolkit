@@ -4,7 +4,7 @@ description: Run the firehose distillation pipeline for a single domain by turni
 disable-model-invocation: true
 context: fork
 model: opus
-argument-hint: "[domain-path]"
+argument-hint: "[domain-path] [--re-distill] [--strategy simple|careful|adversarial]"
 ---
 
 You are implementing the **distiller** described in `distiller-spec.md` as a Claude Code skill for a single domain.
@@ -13,9 +13,9 @@ You are implementing the **distiller** described in `distiller-spec.md` as a Cla
 
 This skill:
 
-- Reads canonical files (`MEMORY.md`, `DECISIONS.md`) and unprocessed session artifacts.
-- Produces **proposed** updates (`MEMORY.md.proposed`, `DECISIONS.md.proposed`) and a conflict report.
-- Moves processed session artifacts into `sessions/processed/` once proposals are written.
+- Reads canonical files (`MEMORY.md`, `DECISIONS.md`) and session artifacts with `status: closed` frontmatter.
+- Produces updated canonical files with `status: proposed` frontmatter (in `manual` mode).
+- Marks processed sessions as `status: distilled` in their frontmatter.
 
 It must respect the **review mode** configured in `agent.md` (`memory_review: manual | flag | auto`), but should start conservatively with `manual` unless clearly configured otherwise.
 
@@ -27,12 +27,14 @@ This skill does not hardcode a model. The appropriate model depends on the **dis
 - **careful**: Sonnet or Opus. Used when the domain has high-stakes decisions or complex, layered context where nuance and conflict detection matter.
 - **adversarial**: Multi-pass. First pass generates proposals (any model), second pass reviews them against canonical state with a different prompt or model.
 
-During early use (before you trust the pipeline), prefer running at **Sonnet-tier or above** regardless of configured strategy. Haiku is an optimization you make after validating that distillation quality meets your bar. Downgrade to Haiku once you've seen enough `.proposed` outputs to trust the simpler model.
+During early use (before you trust the pipeline), prefer running at **Sonnet-tier or above** regardless of configured strategy. Haiku is an optimization you make after validating that distillation quality meets your bar.
 
 ## How to interpret arguments
 
-- If `$ARGUMENTS` is provided, treat `$0` as the **domain root path** (relative or absolute).
-- If no arguments are provided, treat the **current working directory** as the domain root.
+- If `$ARGUMENTS` is provided, treat the first positional argument as the **domain root path** (relative or absolute).
+- If no positional argument is provided, treat the **current working directory** as the domain root.
+- `--re-distill`: Reset all `status: distilled` sessions back to `status: closed`, then process normally.
+- `--strategy <name>`: Override the distillation strategy for this run.
 
 Always normalize to the domain root before operating.
 
@@ -43,101 +45,91 @@ Under the domain root, expect:
 - `README.md` and optionally `.context/STATE.md` for grounding.
 - `.context/MEMORY.md` – current canonical memory.
 - `.context/DECISIONS.md` – current canonical decision log.
-- `.context/sessions/` – session artifacts:
-  - `*.md` checkpoint files.
-  - `*.draft.md` memory drafts (optional).
+- `.context/agent.md` – agent config (read `memory_review` setting).
+- `.context/sessions/` – session artifacts with YAML frontmatter:
+  - `*.md` checkpoint files with `status` frontmatter (`active`, `closed`, `distilled`).
+  - `*.draft.md` memory drafts (the agent's subjective view).
   - `*.log` raw transcripts (rarely needed).
-  - `processed/` subdirectory for already-distilled sessions.
 
 If any canonical file is missing, create a minimal placeholder and proceed, noting this in the proposals.
 
-## Distillation prompt structure
+## Identifying sessions to process
 
-When performing the distillation reasoning, follow the simple strategy from `distiller-spec.md`:
+1. Scan `.context/sessions/` for all `.md` files (excluding `.draft.md` and `.log` files).
+2. Parse YAML frontmatter from each file.
+3. Select files with `status: closed` (these are ready for distillation).
+4. If `--re-distill` was passed, first reset any `status: distilled` files to `status: closed`.
+5. If no `closed` sessions are found, report this and exit — nothing to distill.
+6. Sort selected files chronologically.
+
+## Distillation reasoning
+
+Follow the simple strategy from `distiller-spec.md`:
 
 1. Read existing canonical state:
    - `MEMORY.md`
    - `DECISIONS.md`
-2. Read all **unprocessed** session artifacts from `.context/sessions/` (excluding the `processed/` folder), in chronological order:
-   - Checkpoint `.md` files.
-   - `.draft.md` memory drafts, if present.
-3. Use the following logical structure for your internal reasoning:
+2. Read all `closed` session checkpoint files, chronologically.
+3. Read any companion `.draft.md` files for those sessions.
+4. Reason through:
 
-   - **Existing Canonical State**
-     - Current memory and decisions.
-   - **Session Artifacts**
-     - Checkpoints and drafts since the last distillation.
-   - **Instructions**
+   - **Existing Canonical State** — current memory and decisions.
+   - **Session Artifacts** — checkpoints and drafts since last distillation.
+   - **Agent's subjective view** — compare the agent's memory drafts against your own extraction. Note agreement and disagreement.
+   - **Instructions**:
      - Identify new knowledge, context, and preferences that should persist.
      - Identify decisions made, with rationale and revisit conditions.
      - Flag conflicts with existing canonical state.
      - Preserve the structure of `MEMORY.md`.
      - Append-only semantics for `DECISIONS.md`.
 
-4. Produce three conceptual outputs:
+5. Produce three conceptual outputs:
    - Updated `MEMORY.md` content.
-   - New `DECISIONS.md` entries.
-   - A list of **conflicts** or potential revisits.
+   - New `DECISIONS.md` entries (if any).
+   - A list of **conflicts** or potential revisits (if any).
 
-## Writing proposed files
+## Writing output
 
-1. Write the proposed updated memory file to:
+### Review mode: `manual` (default)
 
-   - `.context/MEMORY.md.proposed`
+1. Write the updated `MEMORY.md` with frontmatter:
+
+   ```yaml
+   ---
+   status: proposed
+   distilled_at: <ISO-8601 timestamp>
+   source_sessions:
+     - <timestamp of each processed session>
+   ---
+   ```
 
    The content should be a complete, self-contained `MEMORY.md` body with the same section structure, updated to include new knowledge and open threads.
 
-2. Write proposed new decisions to:
+2. Write the updated `DECISIONS.md` with the same frontmatter pattern. Append new entries to the existing content. Never modify or remove existing entries.
 
-   - `.context/DECISIONS.md.proposed`
-
-   This file should contain **only** new decision entries, each using the standard format:
-
-   ```markdown
-   ## <date>: <decision title>
-   - **Context**: ...
-   - **Alternatives considered**: ...
-   - **Deciding factors**: ...
-   - **Revisit if**: ...
-   ```
-
-3. If you detect conflicts between new material and existing canonical state, create a small conflict report at:
-
-   - `.context/DISTILL-CONFLICTS.md`
-
-   Briefly describe:
-
+3. If conflicts were detected, write `.context/DISTILL-CONFLICTS.md` describing:
    - The conflicting items.
    - Which previous decisions or memory entries they clash with.
-   - Whether you think the prior material should be revisited.
+   - Whether the prior material should be revisited.
 
-## Respect review mode
+### Review mode: `flag`
 
-Read `agent.md` and look for a `memory_review` setting:
+- Auto-commit clearly non-conflicting, low-risk updates (no `status: proposed` frontmatter for those).
+- Write conflicting changes with `status: proposed` frontmatter for human review.
+- Be conservative; when in doubt, prefer `manual` behavior.
 
-- `manual` (default if missing):
-  - Only write `.proposed` files and the conflict report.
-  - Do **not** modify `MEMORY.md` or `DECISIONS.md` directly.
-- `flag`:
-  - You may auto-merge clearly non-conflicting, low-risk updates into `MEMORY.md` while leaving `.proposed` and conflicts for review.
-  - Be conservative; when in doubt, prefer `manual` behavior.
-- `auto`:
-  - You may treat the proposed updates as authoritative:
-    - Overwrite `MEMORY.md` with the updated content.
-    - Append new entries to `DECISIONS.md`.
-  - Still write `.proposed` files and conflicts so there is an audit trail.
+### Review mode: `auto`
 
-When first wiring up this skill, favor `manual` usage until the user explicitly sets a different mode.
+- Write updates directly (no `status: proposed` frontmatter).
+- Still write `DISTILL-CONFLICTS.md` if conflicts exist, as an audit trail.
 
-## Mark sessions as processed
+## Mark sessions as distilled
 
-After successfully writing proposals:
+After successfully writing output:
 
-1. Move all session checkpoint and draft files that were included in this run into:
-
-   - `.context/sessions/processed/`
-
-2. Leave raw `.log` files alone unless the user has asked you to archive or delete them.
+1. Update the frontmatter of each processed session file to `status: distilled` and add `distilled_at: <timestamp>`.
+2. Do **not** move, rename, or delete session files. They are permanent.
+3. Leave `.draft.md` and `.log` files untouched (they don't have lifecycle frontmatter).
 
 ## Summary for the user
 
@@ -145,9 +137,9 @@ At the end of the skill run, summarize in chat:
 
 - Domain root path.
 - Number of session artifacts processed.
-- Whether `.proposed` files were written.
+- Review mode used.
+- Whether canonical files were updated (and whether with `status: proposed` or committed directly).
 - Whether any conflicts were detected.
-- Whether any canonical files were auto-updated (only in non-manual modes).
+- Whether any disagreements were found between agent drafts and distiller extraction.
 
 If you are unsure about any semantics, consult `distiller-spec.md` in the repo root and follow it as the source-of-truth.
-

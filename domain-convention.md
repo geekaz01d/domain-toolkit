@@ -15,10 +15,9 @@ A **domain** is a folder representing a concern — narrow or broad, ephemeral o
     agent.md            # Agent config: persona, model tier, context map
     STATE.md            # Current status snapshot (volatile, frequently updated)
     sessions/
-      <timestamp>.md        # Structured session notes (agent-written checkpoints)
-      <timestamp>.log       # Raw session transcript (Claude Code native persistence or optional claudeProcessWrapper)
-      <timestamp>.draft.md  # Memory draft (agent's proposed memories, pre-distillation)
-      processed/            # Completed sessions (moved here after distillation)
+      <timestamp>.md        # Structured session checkpoints (frontmatter-tracked lifecycle)
+      <timestamp>.draft.md  # Memory draft (agent's proposed memories, written at session close)
+      <timestamp>.log       # Raw session transcript (optional)
   README.md             # Canonical description of what this domain is
   ...domain content...
 ```
@@ -88,11 +87,38 @@ DECISIONS.md is append-only. The distiller may add new entries but never modifie
 
 ## Session Files
 
-Sessions live in `.context/sessions/` and serve as the raw material for distillation.
+Sessions live in `.context/sessions/` and are **permanent**. They are never moved or deleted. Their lifecycle is tracked via YAML frontmatter.
 
-### `<timestamp>.md` — Structured Session Notes
+### Session Lifecycle
 
-Written by the agent at checkpoints during a session. Each checkpoint captures:
+```yaml
+---
+status: active         # session in progress
+created: 2026-03-10T14:37:22
+---
+```
+
+| Status | Meaning | Set by |
+|--------|---------|--------|
+| `active` | Session is in progress. More checkpoints may be added. | Agent (on first checkpoint) |
+| `closed` | Session is complete. Ready for distillation. | Agent (on `/checkpoint --close` or opportunistically) |
+| `distilled` | Distiller has processed this session. | Distiller (after successful run) |
+
+The agent may **opportunistically close** a session when it senses work is winding down. If the session continues, the agent resets status to `active`. This is cheap — just a frontmatter edit.
+
+Because session files are permanent, re-distillation is always possible. Reset a session's status to `closed` and the distiller will reprocess it. The session corpus is the durable asset.
+
+### Access Boundaries
+
+| Actor | Session files | Canonical files |
+|-------|--------------|-----------------|
+| **Working agent** | Writes (append-only via checkpoint). Never reads back. | Reads on entry. Never writes. |
+| **Distiller** | Reads (to extract knowledge). Never writes (except frontmatter status). | Writes (proposed or committed updates). |
+| **Human** | Can author directly. | Approves distiller proposals. Can edit directly. |
+
+### `<timestamp>.md` — Structured Checkpoints
+
+Written by the agent during a session. Each checkpoint captures:
 
 - What happened since last checkpoint
 - Decisions made
@@ -101,17 +127,15 @@ Written by the agent at checkpoints during a session. Each checkpoint captures:
 
 Checkpoints are triggered by `/checkpoint` command (human-initiated) or suggested by the agent and confirmed by the human. The agent never checkpoints without human consent.
 
-### `<timestamp>.log` — Raw Transcript
-
-Captured via Claude Code's native session persistence or the `claudeProcessWrapper` setting (not the agent). Exists as a backup and audit trail. Not the primary input for distillation — checkpoints are.
-
 ### `<timestamp>.draft.md` — Memory Draft
 
-The agent's proposed memories for the session, written at session close (`/checkpoint --close`). This is what the agent *thinks* should be remembered. It is staged, not canonical — the distiller processes it against existing MEMORY.md and produces a proposed merge.
+The agent's proposed memories for the session, written at session close (`/checkpoint --close`). This is what the agent *thinks* should be remembered — the subjective view. The distiller uses it as a secondary signal, comparing the agent's judgment against its own objective extraction from checkpoints.
 
-### `processed/`
+### `<timestamp>.log` — Raw Transcript
 
-After distillation, session files are moved here. The presence of unprocessed files in `sessions/` indicates pending distillation work — the sessions directory is an **inbox**.
+Full session transcript including thinking blocks. Capture mechanism TBD — Claude Code does not natively export transcripts. Candidates: LiteLLM gateway logging, `script` terminal capture, future Claude Code export feature. This is a major open design question (see Open Threads).
+
+When available, raw transcripts are valuable input for the `careful` and `adversarial` distillation strategies, and essential for corpus re-derivation when the distiller improves.
 
 ## Git Convention
 
@@ -132,7 +156,6 @@ Domains that are git repos follow a standard remote and repository configuration
 
 **What doesn't:**
 - `.context/PROFILE.md` — derived, regenerated by touch (add to `.gitignore`)
-- `.proposed` files — transient distiller output (add to `.gitignore`)
 
 ## Lifecycle
 
@@ -168,12 +191,13 @@ The domain is born version-controlled, context-aware, and ready for interactive 
 
 ### Post-Session
 
-1. Distiller (isolated `claude -p` invocation) processes session checkpoints + memory draft against canonical files
-2. Proposed updates to MEMORY.md and DECISIONS.md are generated
-3. Review gate (per agent.md config): human review, auto-commit, or flag
-4. Approved updates merge into canonical files
-5. Session files move to `processed/`
-6. Git commit captures the session's canonical changes
+1. Scheduled cron job (or manual `distill <domain>`) detects sessions with `status: closed`
+2. Distiller (isolated `claude -p` invocation) reads closed sessions + current canonical files
+3. Updated canonical files written with `status: proposed` frontmatter (in `manual` mode)
+4. Review gate (per agent.md config): human review, auto-commit, or flag
+5. Human approves by updating frontmatter (or distiller auto-commits in `auto` mode)
+6. Distiller marks processed sessions as `status: distilled` in their frontmatter
+7. Git commit captures the session's canonical changes
 
 ### Periodic Maintenance
 

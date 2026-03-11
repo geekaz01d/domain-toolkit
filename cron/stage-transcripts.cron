@@ -1,0 +1,4 @@
+# Stage Claude Code session transcripts into domain .context/sessions/
+# Install: crontab -l | cat - cron/stage-transcripts.cron | crontab -
+# Localize FIREHOSE_ROOT and HOME before installing.
+*/15 * * * * __FIREHOSE_ROOT__/bin/stage-transcripts >> __HOME__/.firehose/stage-transcripts.log 2>&1
