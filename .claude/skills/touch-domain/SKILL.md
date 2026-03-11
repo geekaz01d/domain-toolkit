@@ -123,7 +123,7 @@ New domain bootstrapping. The path may or may not exist yet.
    - Configure origin remote
    - Initial commit with scaffolding
 7. Run `--full` logic to generate PROFILE.md and `domain.code-workspace`
-8. Suggest opening the domain: `open-kit <domain> --cursor`
+8. Suggest opening the domain: `open-domain <domain> --cursor`
 
 ### `--all` Mode
 

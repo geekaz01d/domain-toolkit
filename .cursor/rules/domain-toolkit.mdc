@@ -23,7 +23,7 @@ Before making changes, read these files in order:
 Four commands, four concerns:
 
 - **`touch-domain`** — kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Objective.
-- **`open-kit`** — viewport launch. Opens a domain for interactive work. Transition from objective to subjective.
+- **`open-domain`** — viewport launch. Opens a domain for interactive work. Transition from objective to subjective.
 - **`checkpoint`** — session capture. Structured snapshots during interactive work. Human-initiated.
 - **`distill`** — memory processing. Isolated post-session distillation. Objective, debiased.
 

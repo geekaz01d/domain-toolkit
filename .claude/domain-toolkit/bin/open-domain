@@ -1,10 +1,10 @@
 #!/bin/bash
-# open-kit — Launch a domain viewport for interactive work.
+# open-domain — Launch a domain viewport for interactive work.
 #
 # Usage:
-#   open-kit <domain-path> [--cursor | --terminal]
-#   open-kit --cursor <domain-path>
-#   open-kit --terminal <domain-path>
+#   open-domain <domain-path> [--cursor | --terminal]
+#   open-domain --cursor <domain-path>
+#   open-domain --terminal <domain-path>
 #
 # Defaults to --cursor if no viewport flag is given.
 
@@ -12,7 +12,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: open-kit <domain-path> [--cursor | --terminal]
+Usage: open-domain <domain-path> [--cursor | --terminal]
 
 Open a domain for interactive work in a fresh, isolated viewport.
 
@@ -22,9 +22,9 @@ Options:
   -h, --help   Show this help
 
 Examples:
-  open-kit ~/sources/cashflow
-  open-kit ~/sources/cashflow --cursor
-  open-kit ~/sources/cashflow --terminal
+  open-domain ~/sources/cashflow
+  open-domain ~/sources/cashflow --cursor
+  open-domain ~/sources/cashflow --terminal
 EOF
   exit 0
 }
@@ -45,7 +45,7 @@ done
 
 if [ -z "$DOMAIN_PATH" ]; then
   echo "Error: No domain path specified." >&2
-  echo "Usage: open-kit <domain-path> [--cursor | --terminal]" >&2
+  echo "Usage: open-domain <domain-path> [--cursor | --terminal]" >&2
   exit 1
 fi
 
@@ -58,9 +58,9 @@ DOMAIN_PATH="$(cd "$DOMAIN_PATH" 2>/dev/null && pwd)" || {
 DOMAIN_NAME="$(basename "$DOMAIN_PATH")"
 
 # Validate domain
-if [ ! -f "$DOMAIN_PATH/.context/agent.md" ]; then
-  echo "Error: Not a domain (no .context/agent.md)." >&2
-  echo "Bootstrap it with: /touch --new $DOMAIN_PATH" >&2
+if [ ! -f "$DOMAIN_PATH/.claude/agent.md" ]; then
+  echo "Error: Not a domain (no .claude/agent.md)." >&2
+  echo "Bootstrap it with: touch-domain --new $DOMAIN_PATH" >&2
   exit 1
 fi
 
@@ -70,7 +70,7 @@ case "$VIEWPORT" in
     WORKSPACE="$(find "$DOMAIN_PATH" -maxdepth 1 -name '*.code-workspace' | head -1)"
     if [ -z "$WORKSPACE" ]; then
       echo "Error: No .code-workspace file found at domain root." >&2
-      echo "Generate one with: /touch --full $DOMAIN_PATH" >&2
+      echo "Generate one with: touch-domain --full $DOMAIN_PATH" >&2
       exit 1
     fi
     echo "Opening $DOMAIN_NAME in Cursor..."
@@ -79,7 +79,7 @@ case "$VIEWPORT" in
     ;;
   terminal)
     echo "Opening $DOMAIN_NAME in terminal Claude Code..."
-    echo "  Agent config: $DOMAIN_PATH/.context/agent.md"
-    exec claude --append-system-prompt-file "$DOMAIN_PATH/.context/agent.md"
+    echo "  Agent config: $DOMAIN_PATH/.claude/agent.md"
+    exec claude --append-system-prompt-file "$DOMAIN_PATH/.claude/agent.md"
     ;;
 esac

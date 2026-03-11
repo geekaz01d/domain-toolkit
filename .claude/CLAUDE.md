@@ -4,14 +4,14 @@ This repo defines the domain kit architecture for managing durable human-agent c
 
 Key design documents:
 
-- `docs/specs/orchestrator-architecture.md` – commands (`touch-domain`, `open-kit`, `checkpoint`, `distill`), viewport, runtime, hooks, git conventions.
+- `docs/specs/orchestrator-architecture.md` – commands (`touch-domain`, `open-domain`, `checkpoint`, `distill`), viewport, runtime, hooks, git conventions.
 - `docs/specs/domain-convention.md` – what a domain is, how `.context/` is structured, git convention, lifecycle.
 - `docs/specs/distiller-spec.md` – how session artifacts become canonical `MEMORY.md` and `DECISIONS.md`.
 
 ## Command taxonomy
 
 - **`touch-domain`** – kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Objective.
-- **`open-kit`** – viewport launch. Opens a domain for interactive work in a specified viewport (`--cursor`, `--terminal`).
+- **`open-domain`** – viewport launch. Opens a domain for interactive work in a specified viewport (`--cursor`, `--terminal`).
 - **`checkpoint`** – session capture. Structured snapshots during interactive work.
 - **`distill`** – memory processing. Isolated post-session distillation. Objective, debiased.
 
@@ -30,7 +30,7 @@ Key design documents:
 This project includes project-local skills under `.claude/skills/` that implement domain kit behavior:
 
 - `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal.
-- `/open-kit` – viewport launch: opens a domain in Cursor or terminal Claude session.
+- `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
 - `/checkpoint` – session capture: writes structured checkpoints into `.context/sessions/`.
 - `/distill-domain` – distillation: transforms session artifacts into canonical `MEMORY.md` / `DECISIONS.md`.
 - `/domain-convention` – reference for the domain layout and file roles.
@@ -39,6 +39,6 @@ This project includes project-local skills under `.claude/skills/` that implemen
 ## Workflow
 
 1. `/touch-domain <path>` — validate or bootstrap a domain.
-2. `/open-kit <domain> --cursor` — open the domain viewport for interactive work.
+2. `/open-domain <domain> --cursor` — open the domain viewport for interactive work.
 3. During work, use `/checkpoint` and `/checkpoint --close` to capture session artifacts.
 4. After sessions, run `/distill-domain <domain>` to propose updates to `MEMORY.md` and `DECISIONS.md`.

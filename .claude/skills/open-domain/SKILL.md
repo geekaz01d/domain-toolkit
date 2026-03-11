@@ -1,10 +1,10 @@
 ---
-name: open-kit
+name: open-domain
 description: "Launch a domain viewport for interactive work. Opens a fresh, isolated Cursor window or terminal Claude session for the specified domain."
 argument-hint: "<domain-path> [--cursor | --terminal]"
 ---
 
-You are implementing the **`open-kit`** command from `orchestrator-architecture.md`. This command transitions from objective kit management to subjective interactive work inside a domain.
+You are implementing the **`open-domain`** command from `orchestrator-architecture.md`. This command transitions from objective kit management to subjective interactive work inside a domain.
 
 ## Argument Parsing
 

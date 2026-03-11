@@ -22,7 +22,7 @@ This system makes the domain kit the unit of collaboration. The agent reads the 
 - **Principal awareness.** The domain kit knows who might interact with it — enabling transferability between humans and onboarding of new agents.
 - **Session capture from inception.** Domain creation is a session. The onboarding conversation that defines a domain is itself the first session artifact.
 - **Housekeeping and git awareness.** `touch-domain` is the universal health check. Concerns are surfaced, not silently fixed.
-- **A viewport for interactive work.** `open-kit --cursor` opens a domain in its own VS Code window with context files visible and Claude Code at the center.
+- **A viewport for interactive work.** `open-domain --cursor` opens a domain in its own VS Code window with context files visible and Claude Code at the center.
 - **A distillation loop for reasoning continuity.** Session artifacts are processed by an isolated distiller — a separate agent providing objective review. Knowledge compounds across sessions.
 - **Claude Code superpowers.** Orchestration of subagents, model selection per domain, objective and adversarial review via isolated headless invocations, hooks for deterministic automation.
 
@@ -32,7 +32,7 @@ Four concerns, four commands:
 
 **`touch-domain`** — kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Operates from the outside, objectively. Modes: default (smart touch), `--full` (profile regeneration), `--new` (new domain bootstrapping). Modifiers: `--no-touchy` (read-only diagnostic), `-y` (suppress prompts).
 
-**`open-kit`** — viewport launch. Opens a managed domain for interactive work. `open-kit cashflow --cursor` opens the domain in Cursor/VS Code. The transition from objective observation to subjective immersion.
+**`open-domain`** — viewport launch. Opens a managed domain for interactive work. `open-domain cashflow --cursor` opens the domain in Cursor/VS Code. The transition from objective observation to subjective immersion.
 
 **`checkpoint`** — session capture. Structured snapshots during interactive work, human-initiated. `checkpoint --close` signals session end and triggers memory draft.
 
@@ -42,7 +42,7 @@ Four concerns, four commands:
 
 You open a terminal. You're in the orchestrator — Claude Code running in the system repo. You run `touch-domain --no-touchy` across the registry. The agent reports back: domain statuses, git states, stale profiles, unprocessed sessions, revisit conditions that look met. You see the landscape.
 
-You pick a domain. `open-kit cashflow --cursor`. A new VS Code window appears. PROFILE.md, MEMORY.md, DECISIONS.md open as tabs. Claude Code launches in the extension panel, loads context via hooks, and briefs you: "Last session was March 3rd. STATE shows the reconciliation module is blocked on API access. DECISIONS has a revisit condition that appears met — the vendor shipped their v2 API last week. Three unprocessed sessions pending distillation."
+You pick a domain. `open-domain cashflow --cursor`. A new VS Code window appears. PROFILE.md, MEMORY.md, DECISIONS.md open as tabs. Claude Code launches in the extension panel, loads context via hooks, and briefs you: "Last session was March 3rd. STATE shows the reconciliation module is blocked on API access. DECISIONS has a revisit condition that appears met — the vendor shipped their v2 API last week. Three unprocessed sessions pending distillation."
 
 You're in discourse. You work. The agent surfaces files as tabs when they become relevant. You hit decision points — the agent captures them. When you're done, you `checkpoint --close`. The session artifacts land in `.context/sessions/`.
 
