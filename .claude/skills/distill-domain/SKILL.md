@@ -45,7 +45,7 @@ Under the domain root, expect:
 - `README.md` and optionally `.context/STATE.md` for grounding.
 - `.context/MEMORY.md` – current canonical memory.
 - `.context/DECISIONS.md` – current canonical decision log.
-- `.context/agent.md` – agent config (read `memory_review` setting).
+- `.claude/agent.md` – agent config (read `memory_review` setting).
 - `.context/sessions/` – session artifacts with YAML frontmatter:
   - `*.md` checkpoint files with `status` frontmatter (`active`, `closed`, `distilled`).
   - `*.draft.md` memory drafts (the agent's subjective view).

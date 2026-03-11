@@ -24,7 +24,7 @@ Normalize to an absolute domain root path before proceeding.
 
 Before opening, validate:
 
-1. **Domain exists**: The path must exist and contain `.context/agent.md`. If not, tell the user: "Not a domain. Bootstrap it with `/touch-domain --new <path>`."
+1. **Domain exists**: The path must exist and contain `.claude/agent.md`. If not, tell the user: "Not a domain. Bootstrap it with `/touch-domain --new <path>`."
 2. **Workspace file exists**: For `--cursor`, check that `<name>.code-workspace` exists at the domain root. If missing, tell the user: "No workspace file. Run `/touch-domain --full <path>` to generate one."
 
 Do NOT run a full touch or fix problems — just check and report. The user decides what to do.
@@ -54,7 +54,7 @@ Open the domain in a terminal Claude Code session (no IDE).
 
 1. Run via Bash:
    ```
-   claude --append-system-prompt-file <domain-path>/.context/agent.md
+   claude --append-system-prompt-file <domain-path>/.claude/agent.md
    ```
    Use `--session-id` with a generated UUID for deterministic session tracking if desired.
 2. Note: this launches Claude Code in the current terminal. The session inherits the domain's context via the system prompt file. The SessionStart hook will also fire and inject context files.

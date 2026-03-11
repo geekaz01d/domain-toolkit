@@ -19,7 +19,8 @@ Key design documents:
 
 - Treat a **domain** as a folder with:
   - A root `README.md` describing what the domain is.
-  - A `.context/` directory containing `PROFILE.md`, `MEMORY.md`, `DECISIONS.md`, `STATE.md`, `agent.md`, and `sessions/`.
+  - `.claude/agent.md` — domain configuration, persona, context map (tracked in git).
+  - A `.context/` directory containing `PROFILE.md`, `MEMORY.md`, `DECISIONS.md`, `STATE.md`, and `sessions/` (gitignored).
 - Follow the read/write flow from the specs:
   - **Read on entry:** `PROFILE.md → MEMORY.md → DECISIONS.md → STATE.md`.
   - **Write on exit:** use checkpoints and the distiller instead of editing memory/decisions directly.

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Firehose SessionStart hook
 # Two jobs:
-#   1. If domain (.context/agent.md exists): inject context files as opening context
+#   1. If domain (.claude/agent.md exists): inject context files as opening context
 #   2. Always: record session mapping for transcript retrieval
 #
 # Install: add to ~/.claude/settings.json hooks.SessionStart (see hooks/README.md)
@@ -23,7 +23,7 @@ if [ -n "$SESSION_ID" ] && [ -d ".context/sessions" ]; then
 fi
 
 # --- Domain context injection (only for domains) ---
-AGENT_MD=".context/agent.md"
+AGENT_MD=".claude/agent.md"
 
 if [ ! -f "$AGENT_MD" ]; then
   exit 0

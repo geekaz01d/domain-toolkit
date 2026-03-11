@@ -4,15 +4,15 @@ Claude Code hooks that automate the domain kit lifecycle.
 
 ## session-start.sh
 
-Fires on every Claude Code session start. If the working directory contains `.context/agent.md`, injects the domain's context files as opening context:
+Fires on every Claude Code session start. If the working directory contains `.claude/agent.md`, injects the domain's context files as opening context:
 
-1. `.context/agent.md` — agent persona, model tier, context map
+1. `.claude/agent.md` — agent persona, model tier, context map
 2. `.context/PROFILE.md` — derived domain briefing
 3. `.context/MEMORY.md` — accumulated cross-session understanding
 4. `.context/DECISIONS.md` — decision log with rationale
 5. `.context/STATE.md` — current status and open threads
 
-Non-domain directories (no `.context/agent.md`) are unaffected.
+Non-domain directories (no `.claude/agent.md`) are unaffected.
 
 ## Installation
 
