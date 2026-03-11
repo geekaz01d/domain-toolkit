@@ -1,0 +1,85 @@
+#!/bin/bash
+# open-kit — Launch a domain viewport for interactive work.
+#
+# Usage:
+#   open-kit <domain-path> [--cursor | --terminal]
+#   open-kit --cursor <domain-path>
+#   open-kit --terminal <domain-path>
+#
+# Defaults to --cursor if no viewport flag is given.
+
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: open-kit <domain-path> [--cursor | --terminal]
+
+Open a domain for interactive work in a fresh, isolated viewport.
+
+Options:
+  --cursor     Open in Cursor/VS Code (default)
+  --terminal   Open in terminal Claude Code (no IDE)
+  -h, --help   Show this help
+
+Examples:
+  open-kit ~/sources/cashflow
+  open-kit ~/sources/cashflow --cursor
+  open-kit ~/sources/cashflow --terminal
+EOF
+  exit 0
+}
+
+# Parse arguments
+DOMAIN_PATH=""
+VIEWPORT="cursor"
+
+for arg in "$@"; do
+  case "$arg" in
+    --cursor)   VIEWPORT="cursor" ;;
+    --terminal) VIEWPORT="terminal" ;;
+    -h|--help)  usage ;;
+    -*)         echo "Unknown option: $arg" >&2; exit 1 ;;
+    *)          DOMAIN_PATH="$arg" ;;
+  esac
+done
+
+if [ -z "$DOMAIN_PATH" ]; then
+  echo "Error: No domain path specified." >&2
+  echo "Usage: open-kit <domain-path> [--cursor | --terminal]" >&2
+  exit 1
+fi
+
+# Resolve to absolute path
+DOMAIN_PATH="$(cd "$DOMAIN_PATH" 2>/dev/null && pwd)" || {
+  echo "Error: Path does not exist: $DOMAIN_PATH" >&2
+  exit 1
+}
+
+DOMAIN_NAME="$(basename "$DOMAIN_PATH")"
+
+# Validate domain
+if [ ! -f "$DOMAIN_PATH/.context/agent.md" ]; then
+  echo "Error: Not a domain (no .context/agent.md)." >&2
+  echo "Bootstrap it with: /touch --new $DOMAIN_PATH" >&2
+  exit 1
+fi
+
+case "$VIEWPORT" in
+  cursor)
+    # Find workspace file
+    WORKSPACE="$(find "$DOMAIN_PATH" -maxdepth 1 -name '*.code-workspace' | head -1)"
+    if [ -z "$WORKSPACE" ]; then
+      echo "Error: No .code-workspace file found at domain root." >&2
+      echo "Generate one with: /touch --full $DOMAIN_PATH" >&2
+      exit 1
+    fi
+    echo "Opening $DOMAIN_NAME in Cursor..."
+    echo "  Workspace: $WORKSPACE"
+    cursor --new-window "$WORKSPACE"
+    ;;
+  terminal)
+    echo "Opening $DOMAIN_NAME in terminal Claude Code..."
+    echo "  Agent config: $DOMAIN_PATH/.context/agent.md"
+    exec claude --append-system-prompt-file "$DOMAIN_PATH/.context/agent.md"
+    ;;
+esac

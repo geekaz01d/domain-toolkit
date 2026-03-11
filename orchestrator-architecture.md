@@ -87,7 +87,7 @@ The universal entry point for any domain interaction. Modal — determines what'
 ```
 touch-domain <path>              # smart touch — validates, suggests escalation if needed
 touch-domain --full <path>       # full profile regeneration
-touch-domain --full              # full touch all domains in registry
+touch-domain --all               # full touch all domains in registry (warns first)
 touch-domain --new <path>        # new domain bootstrapping
 touch-domain --new               # new domain bootstrapping (prompts for path)
 touch-domain --no-touchy <path>  # read-only diagnostic, no writes

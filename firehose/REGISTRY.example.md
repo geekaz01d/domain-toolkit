@@ -1,32 +1,31 @@
-# Firehose Domain Registry (Example)
+# Domain Registry (Template)
 
-This file shows an example layout for a firehose domain registry, used by the `/firehose` skill to coordinate a serial sweep.
+This is a template. Copy to `REGISTRY.md` (same directory) and populate with real domains.
 
-You can copy or adapt this into `firehose/REGISTRY.md` in a real project.
+The registry is the single source of truth for what domains the orchestrator knows about. It is the input to `/touch --all` and future `/firehose` sweeps.
 
-## Status values
+## Format
 
-- `pending` – domain has not been swept in the current run.
-- `active` – currently being worked on.
-- `complete` – sweep finished for this run.
-- `deferred` – intentionally skipped for now.
+Each domain gets one row. Columns:
 
-## Example registry
+| Column | Description |
+|--------|-------------|
+| **Domain** | Short name (directory basename or alias) |
+| **Path** | Absolute path to domain root. Use `~` for home directory. |
+| **Kit** | Whether `.context/` exists and is structurally valid: `yes`, `no`, or `partial` |
+| **Last Touched** | Date of last `/touch` or `/touch --full` |
+| **Notes** | Freeform — status, concerns, what this domain is |
 
-```markdown
-# Firehose Domain Registry
+## Registry
 
-| Domain      | Path                          | Status   | Last touched   | Notes                         |
-|------------|-------------------------------|----------|----------------|-------------------------------|
-| firehose   | ./                             | pending  | 2026-03-09     | Specs and skills              |
-| app-core   | ../some-app/app-core          | pending  | 2026-03-08     | Main application core         |
-| billing    | ../some-app/billing           | deferred | 2026-03-01     | Waiting on upstream changes   |
-| infra      | ../infra                       | complete | 2026-02-28     | Baseline sweep already done   |
-```
+| Domain | Path | Kit | Last Touched | Notes |
+|--------|------|-----|-------------|-------|
+| example-project | ~/sources/example-project | yes | 2026-01-01 | Example entry |
 
-In practice:
+## Conventions
 
-1. Create `firehose/REGISTRY.md` based on this template.
-2. Populate it with real domain names and paths.
-3. Use the `/firehose` skill in Claude Code to select the next `pending` domain, mark it `active`, and guide your sweep.
-
+- **Add domains** as you discover or create them. `/touch --new` should prompt to add.
+- **Remove domains** by deleting the row. The domain files are unaffected.
+- **Kit column** is updated by `/touch` — it reflects structural health at last check.
+- **Last Touched** is updated by any `/touch` invocation.
+- **This file is local** — it contains paths specific to this machine. Do not commit to shared repos. The template (`REGISTRY.example.md`) is the portable version.

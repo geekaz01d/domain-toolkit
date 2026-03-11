@@ -20,11 +20,10 @@ Key specs (consult when making changes):
 - `distiller-spec.md` — distillation pipeline, review gate, strategies
 
 Skills (in `.claude/skills/`):
-- `touch-domain` — structural validation/scaffolding
-- `touch-full-domain` — full touch with PROFILE.md generation
+- `touch` — universal domain kit management (structural validation, git precheck, profile regen, bootstrapping)
 - `checkpoint` — session checkpoint capture
 - `distill-domain` — distillation pipeline for a single domain
-- `firehose` — serial sweep coordinator
+- `firehose` — serial sweep coordinator (future)
 - `domain-convention` — reference for domain layout
 
 ## Behavioral Settings

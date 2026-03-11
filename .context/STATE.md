@@ -1,53 +1,37 @@
 # State — firehose
 
-## Current Status: Assumptions verified, ready to build
+## Current Status: Core skills implemented, distiller next
 
-Repo is under git with bare on fluffy. Runtime assumptions verified (Claude Code CLI flags, Cursor CLI, SSH, workspace folderOpen tasks). Specs are stable. Next step is implementing skills in Cursor with Claude Code.
+`/touch` and `/open-kit` are implemented and tested. Registry is live with 7 domains. SessionStart hook is committed and installed. The remaining gap before daily use is the distillation pipeline.
 
 ## What's Done
 
-- **Command taxonomy**: four commands, four concerns, cleanly separated. Documented in orchestrator-architecture.md and README.md.
-- **`touch-domain`** spec complete: default/--full/--new modes, --no-touchy and -y modifiers, git state precheck (6 states), extensible design
-- **`open-kit`** spec complete: `--cursor` and `--terminal` viewport targets, workspace file launch
-- **`checkpoint`** and **`distill`** specs carried forward from earlier work, aligned with new taxonomy
-- **Variety-agent-design lineage**: domain kit as viable system (Ashby, Beer, VSM) integrated into README and DECISIONS
-- Viewport pivot (2026-03-10): Cursor workspace-per-domain via `open-kit --cursor`
-- Git conventions: agnostic spec with environment-specific settings in `firehose.local.md`
-- All three spec documents revised and consistent
-- README.md written with framing, user story, and command reference
-- **Git initialized**: repo under git, bare repo on fluffy, origin configured
-- **Runtime assumptions verified** (2026-03-10 Cowork session):
-  - Claude Code CLI 2.1.72 with all required flags: --append-system-prompt-file, --system-prompt-file, --session-id, -p/--print
-  - Cursor CLI in PATH with --new-window support
-  - Workspace folderOpen tasks confirmed working
-  - SSH to fluffy, bare repo infrastructure confirmed
-  - `verify-assumptions.sh` captures all checks, re-runnable
-- **Cursor rules**: `.cursor/rules/firehose.mdc` created for Cursor agent context
-- **Local config updated**: `firehose.local.md` now documents Cursor as primary editor, LiteLLM gateway to OpenRouter, Claude Code binary location
-
-## What's In Progress
-
-- **Skill implementation**: existing skills (touch-domain, touch-full-domain) need update to match new spec (modal modes, git precheck)
-- **`open-kit`** needs to be implemented as a skill or script
+- **Command taxonomy**: four commands, four concerns, cleanly separated
+- **`/touch` skill**: fully rewritten with modal modes (default, --full, --new, --all), git precheck (6 states), --no-touchy and -y modifiers. Renamed from `touch-domain` to `touch`. `touch-full-domain` removed.
+- **`/open-kit` skill + shell script**: `bin/open-kit` script accepts `--cursor` (default) and `--terminal`. Skill wraps the same logic. Validates domain and workspace file before launching.
+- **SessionStart hook**: committed, installed at `~/.claude/hooks/session-start.sh`, confirmed working. Injects context files on session start.
+- **Domain registry**: `firehose/REGISTRY.md` (live, local) with 7 domains (4 with kits, 3 candidates). Template at `firehose/REGISTRY.example.md`.
+- **Test domain**: `~/sources/touchy-muchy` bootstrapped via `/touch --new` — validated the full onboarding flow
+- **Spec updated**: `orchestrator-architecture.md` updated (`--full` without path → `--all` with cost warning)
+- **PROFILE.md regenerated**: reflects current state of skills and hooks
+- **agent.md updated**: skill references corrected (touch, not touch-domain/touch-full-domain)
+- All prior work: specs, runtime verification, git setup, Cursor rules, README
 
 ## What's Blocked / Open
 
-- No live registry — identified 4 touched domains + ~4 candidates
-- SessionStart hook: design complete, not implemented
+- **Distiller prompt not written** — `distiller-prompt.md` doesn't exist; headless distillation can't run yet
+- **MEMORY.md is stale** — references Alacritty+tmux, says no README exists. Needs distillation or manual update.
+- **Global config** (`~/.firehose/config.md`) format not designed
 - Session transcript capture: Claude Code native persistence vs `claudeProcessWrapper` — not decided
-- Distiller prompt (`distiller-prompt.md`) not written
-- Global config (`~/.firehose/config.md`) format not designed
-- `variety-agent-design.md` lives in cursus, not in this repo — decide whether to copy or reference
-- LiteLLM gateway config details (endpoint, key location) TBD
+- `variety-agent-design.md` lives in cursus — decide whether to copy or reference
+- LiteLLM gateway config details TBD
 
 ## Next Steps
 
-1. Implement `touch-domain` skill with all modes (default, --full, --new, --no-touchy, -y, git precheck)
-2. Implement `open-kit` as a skill (--cursor, --terminal)
-3. Write `SessionStart` hook for automatic context loading
-4. Write domain registry (REGISTRY.md)
-5. Write distiller prompt
-6. Design global config format
-7. Test end-to-end: `touch-domain --new /path/to/test-domain` → onboarding → git → workspace → `open-kit test-domain --cursor`
+1. Write distiller prompt (`distiller-prompt.md`) — enables headless `claude -p` distillation
+2. Run distillation on stale MEMORY.md (or manual update as bootstrap)
+3. Design global config format (`~/.firehose/config.md`)
+4. End-to-end test: full lifecycle through a real domain (not test)
+5. Clean up touchy-muchy test domain
 
 ## Last Updated: 2026-03-10
