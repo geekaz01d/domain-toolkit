@@ -2,7 +2,7 @@
 
 **Generated:** 2026-03-10 (full touch)
 **Domain root:** `/home/richard/sources/firehose`
-**Status:** Session capture pipeline built, distiller spec updated, approaching first end-to-end distillation
+**Status:** Core pipeline built; distiller prompt is the remaining blocker for end-to-end distillation
 
 > This file is derived. Edit README.md, STATE.md, MEMORY.md, DECISIONS.md, or agent.md instead. Regenerate with `/touch --full`.
 
@@ -21,9 +21,9 @@ The core concept is the **domain kit**: the complete set of domain-specific reso
 | Command | Concern | Posture |
 |---------|---------|---------|
 | `touch` | Kit management — health, scaffolding, git, profiling | Objective (from outside) |
-| `open-kit` | Viewport launch — opens domain for interactive work | Transition (outside -> inside) |
+| `open-kit` | Viewport launch — opens domain for interactive work | Transition (outside → inside) |
 | `checkpoint` | Session capture — structured snapshots during work | Subjective (from inside) |
-| `distill` | Memory processing — session artifacts -> canonical files | Objective (isolated, debiased) |
+| `distill` | Memory processing — session artifacts → canonical files | Objective (isolated, debiased) |
 
 `firehose` (the sweep) is a **future feature** — System 4 (VSM), strategic attention direction across domains. Deferred until core commands are proven.
 
@@ -36,9 +36,9 @@ The core concept is the **domain kit**: the complete set of domain-specific reso
 | File | Purpose |
 |------|---------|
 | `orchestrator-architecture.md` | Commands, viewport, runtime, hooks, git conventions, implementation path |
-| `domain-convention.md` | Domain directory structure, `.context/` file roles, session lifecycle |
-| `distiller-spec.md` | Distillation pipeline, three perspectives model, transcript-first processing, `[FIREHOSE]` marker |
-| `firehose.local.md` | Environment-specific config (Cursor primary, LiteLLM gateway, bare repo server) |
+| `domain-convention.md` | Domain directory structure, `.context/` file roles, session lifecycle with frontmatter |
+| `distiller-spec.md` | Distillation pipeline, access boundaries table, transcript-first processing, `[FIREHOSE]` marker |
+| `firehose.local.md` | Environment-specific config (Cursor primary, fluffy.geekazoid.net bare repos) |
 
 ### Skills (in `.claude/skills/`)
 
@@ -46,19 +46,19 @@ The core concept is the **domain kit**: the complete set of domain-specific reso
 |-------|---------|--------|
 | `touch` | Universal kit management: validate, scaffold, profile regen, bootstrap, git precheck | Stable |
 | `open-kit` | Viewport launch (`--cursor`, `--terminal`) with shell script wrapper | Stable |
-| `checkpoint` | Writes structured session checkpoints to `.context/sessions/` | Stable |
+| `checkpoint` | Writes structured session checkpoints with YAML frontmatter to `.context/sessions/` | Stable |
 | `distill-domain` | Runs distillation pipeline for a single domain | Skill exists, distiller prompt not written |
 | `firehose` | Serial sweep coordinator | Future |
 | `domain-convention` | Reference for domain layout and file roles | Stable |
 
-### Hooks (in `hooks/` — committed and installed)
+### Hooks (in `hooks/` — committed and installed globally)
 
 | File | Purpose |
 |------|---------|
 | `hooks/session-start.sh` | SessionStart hook — injects context files on entry + records session cookie crumb to `session-index.jsonl` |
 | `hooks/README.md` | Installation instructions |
 
-Hook reads stdin JSON from CC (session_id, transcript_path, cwd, source). Writes domain-local session index if `.context/sessions/` exists. Then injects context files if `.context/agent.md` exists.
+Hook reads stdin JSON (session_id, transcript_path, cwd, source). Writes domain-local `session-index.jsonl` if `.context/sessions/` exists. Injects context files if `.context/agent.md` exists.
 
 ### Scripts and automation (in `bin/` and `cron/`)
 
@@ -73,7 +73,7 @@ Hook reads stdin JSON from CC (session_id, transcript_path, cwd, source). Writes
 
 | File | Purpose |
 |------|---------|
-| `firehose.code-workspace` | VS Code workspace file for the firehose domain itself |
+| `firehose.code-workspace` | Cursor/VS Code workspace file for the firehose domain |
 | `firehose/REGISTRY.md` | Live domain registry with 7 domains (4 with kits, 3 candidates) |
 | `firehose/REGISTRY.example.md` | Template for registry |
 | `verify-assumptions.sh` | Re-runnable runtime assumptions check script |
@@ -85,25 +85,59 @@ Hook reads stdin JSON from CC (session_id, transcript_path, cwd, source). Writes
 ## Architecture
 
 **Two-tier:**
-
 - **Orchestrator** — long-lived, holds registry, manages sweep state
 - **Subagents** — ephemeral per-domain, clean context, communicate via filesystem
 
 **Disk is the shared bus.** `.context/` directories are the IPC layer. Everything is interruptible and resumable by design.
 
-**Viewport:** VS Code workspace-per-domain via `open-kit --cursor`. Workspace file auto-opens context files as tabs. Entry point: `cursor --new-window domain.code-workspace`.
+**Viewport:** VS Code/Cursor workspace-per-domain via `open-kit --cursor`. Workspace file opens context files as tabs on folderOpen. Entry point: `cursor --new-window domain.code-workspace`.
 
-**Context loading:** `hooks/session-start.sh` — SessionStart hook that injects context files deterministically and records session cookie crumb. Installed and working.
+**Context loading:** `hooks/session-start.sh` — SessionStart hook injects context files deterministically and records session cookie crumb. Installed globally at `~/.claude/hooks/session-start.sh`.
 
-**Session capture pipeline:**
-1. SessionStart hook drops cookie crumb (session_id + transcript_path) in domain's `session-index.jsonl`
-2. CC writes JSONL continuously during session (source of truth, includes thinking blocks)
-3. `bin/stage-transcripts` (cron) extracts JSONL into readable `.transcript.md` files
-4. Stager tracks JSONL byte size in `.staged-sessions` — re-extracts when session grows
-5. Distiller reads transcripts + checkpoints, appends `[FIREHOSE]` marker to CC JSONL on completion
-6. `[FIREHOSE]` marker visible in CC conversation view if session is resumed
+---
 
-**Distillation:** `claude -p` with `--system-prompt-file` — headless, isolated, no shared session history. Three perspectives model: distiller forms independent view, then weighs against human and agent checkpoints. Opus-tier by default.
+## Session Capture Pipeline
+
+```
+CC writes JSONL continuously (source of truth, includes thinking blocks)
+       ↓
+SessionStart hook drops cookie crumb (session_id + transcript_path) → session-index.jsonl
+       ↓
+bin/stage-transcripts (cron, every 15 min) extracts JSONL → .transcript.md files
+  - Tracks byte size in .staged-sessions; re-extracts when session grows
+       ↓
+Distiller reads transcripts + checkpoints → proposes updates to MEMORY.md / DECISIONS.md
+  - Appends [FIREHOSE] marker to CC JSONL on completion (high-water mark)
+  - Marker visible to human and agent if session is resumed
+```
+
+### Session lifecycle (frontmatter-tracked)
+
+Checkpoint files carry YAML frontmatter tracking state:
+- `status: active` — session in progress
+- `status: closed` — session ended, awaiting distillation (cron trigger signal)
+- `status: distilled` — processed by distiller
+
+Sessions are **permanent** — never moved, never deleted. The corpus is the durable asset; the distiller is a replaceable lens. Re-distillation is always possible by removing the `[FIREHOSE]` marker.
+
+**Cron** is the primary distillation trigger — decoupled from Claude Code process lifecycle.
+
+### Access boundaries
+
+| Actor | Session transcripts | Checkpoints | Canonical files | CC JSONL |
+|-------|-------------------|-------------|-----------------|----------|
+| **Working agent** | Never reads/writes | Writes (append-only, `/checkpoint`) | Reads on entry. Never writes. | CC runtime writes; agent unaware |
+| **Stager** | Writes (extracts from JSONL) | Never touches | Never touches | Reads (source of truth) |
+| **Distiller** | Reads (primary input) | Reads (attention markers) | Writes proposed updates | Appends `[FIREHOSE]` marker |
+| **Human** | Can author directly | Can author directly | Approves distiller proposals | Sees marker on resume |
+
+---
+
+## Distillation
+
+`claude -p` with `--system-prompt-file` — headless, isolated, no shared session history. The disk boundary between working agent and distiller is a debiasing mechanism. Three perspectives model: distiller forms independent view, then weighs against human and agent checkpoints. Opus-tier by default.
+
+**Distiller prompt (`distiller-prompt.md`) not yet written** — primary blocker for end-to-end distillation.
 
 ---
 
@@ -120,47 +154,48 @@ Hook reads stdin JSON from CC (session_id, transcript_path, cwd, source). Writes
 | Headless `claude -p` for distillation | Clean context isolation; disk boundary = debiasing |
 | Agent teams NOT used | Teams share working dir — wrong primitive for domain isolation |
 | touch as modal command | One command: smart default + --full/--new/--all/--no-touchy/-y flags |
-| Git-aware by default | All domains git-tracked; bare repo convention; touch surfaces, not silently fixes |
+| Git-aware by default | All domains git-tracked; touch surfaces, not silently fixes |
 | Four commands, four concerns | Clean separation: each command evolves independently |
 | Domain kit as foundational concept | VSM-grounded, not just "context engineering" |
-| CC JSONL as source of truth | Transcripts derived from CC's native session files, never modified except `[FIREHOSE]` marker |
-| Three perspectives distillation | Distiller forms own view, then weighs human + agent perspectives. Best truth wins. |
-| Opus for distillation | Judgment-heavy, not summarization. Downgrade when proven prompt exists. |
+| CC JSONL as source of truth | Transcripts derived from CC's native session files; never modified except `[FIREHOSE]` marker |
+| Three perspectives distillation | Distiller forms own view, then weighs human + agent perspectives |
+| Opus for distillation | Judgment-heavy, not summarization |
+| Sessions are permanent, distillation rerunnable | Corpus is durable asset; distiller is a replaceable lens |
+| Frontmatter over file suffixes | Session lifecycle tracked in YAML frontmatter, not filenames or `processed/` folder |
+| Cron as primary distillation trigger | Decoupled from CC process lifecycle; signal is `closed` sessions on disk |
 
 ---
 
 ## Current Status
 
-**Session capture pipeline built this session.** SessionStart hook updated to record cookie crumbs. `bin/stage-transcripts` extracts CC JSONL into `.transcript.md` files with thinking blocks. `[FIREHOSE]` distillation marker format tested and confirmed visible in CC conversation view. Distiller spec updated with transcript-first processing, three perspectives model, and `[FIREHOSE]` marker convention.
+Core pipeline built and validated across multiple sessions. Distiller spec substantially revised: access boundaries table, frontmatter lifecycle (replacing `processed/` folder), permanent sessions, cron trigger model. Auto-run-command extension evaluated for VS Code workspace auto-launch.
 
 **What's done:**
 - All four command specs complete and consistent
 - Runtime verified — Claude Code CLI, Cursor CLI, SSH/bare repo, workspace tasks
-- SessionStart hook committed, installed, and working (now with session indexing)
+- SessionStart hook committed, installed, and working (session indexing + context injection)
 - `/touch` and `/open-kit` skills fully implemented
 - Domain registry live with 7 domains
-- Session capture pipeline: hook -> JSONL -> stager -> transcript.md
-- `[FIREHOSE]` marker format validated (appended to CC JSONL, visible in conversation view)
-- Distiller spec substantially updated (transcript-first, three perspectives, Opus default)
+- Session capture pipeline: hook → JSONL → stager → transcript.md (with thinking blocks)
+- `[FIREHOSE]` marker format validated; acts as high-water mark for incremental distillation
+- Distiller spec revised: access boundaries table, frontmatter lifecycle, permanent sessions, cron trigger
+- `domain-convention.md` updated: removed `processed/` folder, added frontmatter lifecycle
 - Cron templates for staging and distillation
 - Test domain (`touchy-muchy`) bootstrapped and validated
 
 **What's next (priority order):**
-1. Write distiller prompt (`distiller-prompt.md`) — enables headless `claude -p` distillation
+1. Write distiller prompt (`distiller-prompt.md`) — primary blocker for headless distillation
 2. Implement `bin/distill-pending` — cron-driven distillation runner
 3. Run first distillation (firehose domain itself — MEMORY.md is stale)
-4. Install cron jobs (localize templates)
+4. Install cron jobs (localize templates, add to crontab)
 5. End-to-end test: full lifecycle through a real domain
 
 ---
 
 ## Gaps & Warnings
 
-1. **MEMORY.md is stale** — references Alacritty+tmux runtime, says transcript capture undecided (now decided). Distillation needed.
+1. **MEMORY.md is stale** — references Alacritty+tmux runtime, says transcript capture undecided (now decided), missing frontmatter lifecycle and other session decisions. Distillation needed.
 2. **Distiller prompt not written** — `distiller-prompt.md` doesn't exist; headless distillation can't run yet.
 3. **`bin/distill-pending` not written** — cron-driven distiller runner doesn't exist yet.
 4. **Cron jobs not installed** — templates exist in `cron/`, need localization and `crontab` installation.
-5. **`sessions/processed/` empty** — no sessions have been through distillation yet.
-6. **`variety-agent-design.md` lives in `cursus`** — decision pending: copy here or reference externally.
-7. **Unpushed commits** — 2 commits ahead of origin, plus uncommitted changes from this session.
-8. **STATE.md is stale** — still references open threads that are now resolved (session capture decided, open-kit implemented).
+5. **Uncommitted changes** — `.context/sessions/session-index.jsonl` has local modifications.

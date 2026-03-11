@@ -69,7 +69,7 @@ Smart touch. Inspect the target path and pick the right action:
 **Structural validation** (the core of default touch):
 - `.context/` directory exists
 - Required files exist: `agent.md`, `STATE.md`, `MEMORY.md`, `DECISIONS.md`, `PROFILE.md`
-- `sessions/` directory exists (with `processed/` subdirectory)
+- `sessions/` directory exists
 - Pointer integrity: if `agent.md` exists, check that any referenced files actually exist
 - `domain.code-workspace` exists at domain root
 - For any missing structural element: if `--no-touchy`, just report it. Otherwise, create minimal placeholder scaffolding per `domain-convention.md`.
@@ -114,7 +114,7 @@ New domain bootstrapping. The path may or may not exist yet.
    - `README.md` at domain root (from the user's description)
    - `agent.md` (persona, model tier, context map)
    - Initial `STATE.md`, `MEMORY.md` (minimal), `DECISIONS.md` (empty structure)
-   - `sessions/` and `sessions/processed/`
+   - `sessions/`
 5. Capture the onboarding conversation as the first session artifact in `.context/sessions/`
 6. Initialize git:
    - `git init`

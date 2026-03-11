@@ -17,7 +17,17 @@
   },
   "extensions": {
     "recommendations": [
-      "anthropic.claude-code"
+      "anthropic.claude-code",
+      "gabrielgrinberg.auto-run-command"
+    ]
+  },
+  "settings": {
+    "auto-run-command.rules": [
+      {
+        "condition": "hasFile",
+        "filename": ".context/agent.md",
+        "commands": ["claude-vscode.newConversation"]
+      }
     ]
   }
 }
