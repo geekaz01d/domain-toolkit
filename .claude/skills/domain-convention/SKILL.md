@@ -1,7 +1,7 @@
 ---
 name: domain-convention
 description: Reference for the domain-toolkit domain convention (.context layout, file roles, and session lifecycle). Use whenever working inside a domain-toolkit-managed domain or updating its context files.
-user-invocable: true
+user-invocable: false
 ---
 
 You are working in a repo that implements the **domain-toolkit/domain orchestration** design.

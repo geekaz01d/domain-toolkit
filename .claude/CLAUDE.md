@@ -33,8 +33,8 @@ This project includes project-local skills under `.claude/skills/` that implemen
 - `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
 - `/checkpoint` – session capture: writes structured checkpoints into `.context/sessions/`.
 - `/distill-domain` – distillation: transforms session artifacts into canonical `MEMORY.md` / `DECISIONS.md`.
-- `/domain-convention` – reference for the domain layout and file roles.
-- `/sweep` – (future) cross-domain attention sweep.
+- `/domain-convention` – agent posture for domain layout and file roles (not user-invocable).
+- `domain-overview` – System 4 attention-direction across domains; invoked via `open-domain --overview` (not yet implemented).
 
 ## Workflow
 

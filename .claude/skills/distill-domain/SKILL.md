@@ -1,7 +1,6 @@
 ---
 name: distill-domain
 description: Run the domain-toolkit distillation pipeline for a single domain by turning session artifacts into proposed MEMORY.md and DECISIONS.md updates.
-disable-model-invocation: true
 context: fork
 model: opus
 argument-hint: "[domain-path] [--re-distill] [--strategy simple|careful|adversarial]"

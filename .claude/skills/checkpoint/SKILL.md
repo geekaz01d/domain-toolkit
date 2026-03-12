@@ -1,7 +1,6 @@
 ---
 name: checkpoint
 description: Capture a structured checkpoint for the current domain session into .context/sessions/. Use /checkpoint for mid-session snapshots and /checkpoint --close at the end of a session.
-disable-model-invocation: true
 argument-hint: "[--close] [optional-note]"
 ---
 
