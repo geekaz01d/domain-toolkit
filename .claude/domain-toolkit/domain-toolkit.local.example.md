@@ -3,47 +3,41 @@
 # This file contains environment-specific settings for THIS installation
 # of the domain-toolkit system. It is NOT part of the portable spec.
 # Each domain-toolkit user would have their own version of this file.
+#
+# Copy this to ~/.claude/domain-toolkit/domain-toolkit.local.md and
+# fill in your details.
 
 ## Git Remote Conventions
 
 ### Primary bare repo (origin)
-- Host: root@fluffy.geekazoid.net
-- Path pattern: /mnt/user/git/<repository>.git
-- Example: root@fluffy.geekazoid.net:/mnt/user/git/domain-toolkit.git
+- Host: user@yourserver.example.com
+- Path pattern: /path/to/git/<repository>.git
+- Example: user@yourserver.example.com:/path/to/git/my-project.git
 
 ### Secondary mirror (optional, per-domain opt-in)
 - Provider: GitHub (private repos)
-- Org/user: TBD
+- Org/user: your-github-username
 
 ## Known Domains
 
 ### Touched (confirmed)
 - domain-toolkit — this repo
-- cashflow
-- systems-architectures
-- systems-geekazoid
+- my-project
+- another-project
 
 ### Candidates (not yet touched)
-- systems-harrklen
-- cursus.local
-- claude-collect
-- francoeur/agent-portfolio
+- idea-i-havent-started
+- client-work
 
 ## Desktop Environment
-- OS: Linux Mint, MATE, X11
-- Primary editor: Cursor (VS Code fork)
-- Agent runtime: Claude Code CLI + Cursor extension
-- Cowork (Claude desktop app) for spec work and design sessions
+- OS: (your OS)
+- Primary editor: Cursor / VS Code
+- Agent runtime: Claude Code CLI + editor extension
 
 ## Model Access
-- Claude: via Claude Code CLI and Cursor extension (Anthropic direct)
-- Other models: LiteLLM gateway to OpenRouter
-  - Available for Cursor agent calls, comparison testing, and tasks where model diversity is useful
-  - Configuration: TBD (endpoint, API key location)
+- Claude: via Claude Code CLI and editor extension (Anthropic direct)
+- Other models: (optional — LiteLLM, OpenRouter, local models, etc.)
 
 ## Notes
-- fluffy.geekazoid.net is the primary server/NAS
-- All bare repos live under /mnt/user/git/ on fluffy
-- SSH access via root (key-based)
-- `cursor` CLI is in PATH (not `code` — Cursor, not VS Code)
-- Claude Code binary: ~/.local/share/claude/versions/ (compiled ELF, not npm)
+- Add any environment-specific details here: server names, SSH config,
+  CLI tool locations, workarounds, etc.
