@@ -1,0 +1,41 @@
+# Domain Kit Engineering
+
+This repo defines the domain kit architecture for managing durable human-agent collaboration across multiple domains.
+
+Key design documents:
+
+- `docs/specs/orchestrator-architecture.md` – commands (`touch-domain`, `open-domain`, `distill`), viewport, runtime, hooks, git conventions.
+- `docs/specs/domain-convention.md` – what a domain is, how `.context/` is structured, git convention, lifecycle.
+- `docs/specs/distiller-spec.md` – how session artifacts become canonical `MEMORY.md` and `DECISIONS.md`.
+
+## Command taxonomy
+
+- **`touch-domain`** – kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Objective.
+- **`open-domain`** – viewport launch. Opens a domain for interactive work in a specified viewport (`--cursor`, `--terminal`).
+- **`distill`** – memory processing. Isolated post-session distillation. Objective, debiased.
+
+## When working inside a domain kit
+
+- Treat a **domain** as a folder with:
+  - A root `README.md` describing what the domain is.
+  - `.claude/agent.md` — domain configuration, persona, context map (tracked in git).
+  - A `.context/` directory containing `PROFILE.md`, `MEMORY.md`, `DECISIONS.md`, `STATE.md`, and `sessions/` (gitignored).
+- Follow the read/write flow from the specs:
+  - **Read on entry:** `PROFILE.md → MEMORY.md → DECISIONS.md → STATE.md`.
+  - **Write on exit:** use the distiller instead of editing memory/decisions directly.
+
+## Claude Code skills for this repo
+
+This project includes project-local skills under `.claude/skills/` that implement domain kit behavior:
+
+- `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal.
+- `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
+- `/distill-domain` – distillation: transforms session artifacts into canonical `MEMORY.md` / `DECISIONS.md`.
+- `/domain-convention` – agent posture for domain layout and file roles (not user-invocable).
+- `domain-overview` – cross-domain attention overview; invoked via `open-domain --overview` (not yet implemented).
+
+## Workflow
+
+1. `/touch-domain <path>` — validate or bootstrap a domain.
+2. `/open-domain <domain> --cursor` — open the domain viewport for interactive work.
+3. After sessions, run `/distill-domain <domain>` to propose updates to `MEMORY.md` and `DECISIONS.md`.

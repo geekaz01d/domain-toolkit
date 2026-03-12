@@ -1,0 +1,9 @@
+# Domain context — knowledge layer, runtime, private
+.context/
+
+# Cursor workspace file — generated, not shared
+domain-toolkit.code-workspace
+
+# Claude Code settings — personal, not shared
+.claude/settings.json
+.claude/settings.local.json

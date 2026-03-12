@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""Stage Claude Code session transcripts into domain .context/sessions/ directories.
+
+Walks all registered domains (from REGISTRY.md), reads each domain's
+.context/sessions/session-index.jsonl, extracts JSONL transcripts into
+readable markdown (with thinking blocks), and stages them in-place.
+
+Re-stages when the source JSONL has grown (e.g. session was continued).
+Uses atomic writes so downstream consumers never see partial files.
+
+Designed to run as a cron job or manually after sessions.
+"""
+
+import json
+import os
+import re
+import sys
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+FIREHOSE_ROOT = SCRIPT_DIR.parent
+REGISTRY_FILE = FIREHOSE_ROOT / "firehose" / "REGISTRY.md"
+
+
+def parse_registry():
+    """Extract domain paths from REGISTRY.md table."""
+    if not REGISTRY_FILE.exists():
+        print(f"Registry not found: {REGISTRY_FILE}", file=sys.stderr)
+        return []
+
+    paths = []
+    for line in REGISTRY_FILE.read_text().splitlines():
+        # Match table rows: | name | ~/path | ...
+        m = re.match(r'^\|\s*\S+\s*\|\s*(~?\S+)\s*\|', line)
+        if m:
+            raw = m.group(1).strip()
+            if raw.startswith("~"):
+                raw = str(Path.home() / raw[2:])
+            if raw and not raw.startswith("-") and raw != "Path":  # skip header/separator
+                paths.append(Path(raw))
+    return paths
+
+
+def find_transcript(entry):
+    """Locate the JSONL transcript file for a session."""
+    # Prefer transcript_path from hook input
+    tp = entry.get("transcript_path", "")
+    if tp and Path(tp).exists():
+        return Path(tp)
+
+    # Fallback: compute from session_id (needs domain path context)
+    sid = entry.get("session_id", "")
+    domain_path = entry.get("_domain_path", "")
+    if domain_path and sid:
+        encoded = str(domain_path).replace("/", "-").lstrip("-")
+        candidate = Path.home() / ".claude" / "projects" / encoded / f"{sid}.jsonl"
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
+def extract_transcript(jsonl_path):
+    """Extract a session JSONL into structured markdown with thinking blocks."""
+    lines = []
+    lines.append(f"<!-- source: {jsonl_path} -->")
+    lines.append("")
+
+    with open(jsonl_path) as f:
+        for raw_line in f:
+            raw_line = raw_line.strip()
+            if not raw_line:
+                continue
+            try:
+                obj = json.loads(raw_line)
+            except json.JSONDecodeError:
+                continue
+
+            msg_type = obj.get("type", "")
+
+            if msg_type == "user":
+                msg = obj.get("message", {})
+                content = msg.get("content", "")
+                if isinstance(content, str) and content.strip():
+                    lines.append("## User")
+                    lines.append("")
+                    lines.append(content.strip())
+                    lines.append("")
+                elif isinstance(content, list):
+                    text_parts = [
+                        b.get("text", "")
+                        for b in content
+                        if isinstance(b, dict) and b.get("type") == "text"
+                    ]
+                    combined = "\n".join(t for t in text_parts if t.strip())
+                    if combined:
+                        lines.append("## User")
+                        lines.append("")
+                        lines.append(combined)
+                        lines.append("")
+
+            elif msg_type == "assistant":
+                msg = obj.get("message", {})
+                content = msg.get("content", [])
+                if not isinstance(content, list):
+                    continue
+
+                has_output = False
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    btype = block.get("type", "")
+
+                    if btype == "thinking":
+                        thinking = block.get("thinking", "").strip()
+                        if thinking:
+                            if not has_output:
+                                lines.append("## Assistant")
+                                lines.append("")
+                                has_output = True
+                            lines.append("<details><summary>Thinking</summary>")
+                            lines.append("")
+                            lines.append(thinking)
+                            lines.append("")
+                            lines.append("</details>")
+                            lines.append("")
+
+                    elif btype == "text":
+                        text = block.get("text", "").strip()
+                        if text:
+                            if not has_output:
+                                lines.append("## Assistant")
+                                lines.append("")
+                                has_output = True
+                            lines.append(text)
+                            lines.append("")
+
+                    elif btype == "tool_use":
+                        tool_name = block.get("name", "unknown")
+                        tool_input = block.get("input", {})
+                        if not has_output:
+                            lines.append("## Assistant")
+                            lines.append("")
+                            has_output = True
+                        # Compact tool call representation
+                        if tool_name in ("Read", "Glob", "Grep"):
+                            summary = json.dumps(tool_input, separators=(",", ":"))
+                            if len(summary) > 200:
+                                summary = summary[:200] + "..."
+                            lines.append(f"**Tool: {tool_name}** `{summary}`")
+                        elif tool_name == "Bash":
+                            cmd = tool_input.get("command", "")
+                            lines.append(f"**Tool: Bash** `{cmd[:200]}`")
+                        elif tool_name in ("Edit", "Write"):
+                            fp = tool_input.get("file_path", "")
+                            lines.append(f"**Tool: {tool_name}** `{fp}`")
+                        else:
+                            lines.append(f"**Tool: {tool_name}**")
+                        lines.append("")
+
+                if has_output:
+                    lines.append("---")
+                    lines.append("")
+
+    return "\n".join(lines)
+
+
+def load_staged_state(staged_file):
+    """Load staged state: dict of session_id -> jsonl_size at time of staging."""
+    state = {}
+    if staged_file.exists():
+        for line in staged_file.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\t", 1)
+            if len(parts) == 2:
+                state[parts[0]] = int(parts[1])
+            else:
+                # Bare session ID (legacy) — treat as size 0 to force re-stage
+                state[parts[0]] = 0
+    return state
+
+
+def save_staged_state(staged_file, state):
+    """Write staged state atomically."""
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=staged_file.parent, prefix=".staged-", suffix=".tmp", delete=False
+    ) as tmp:
+        for sid in sorted(state):
+            tmp.write(f"{sid}\t{state[sid]}\n")
+        tmp_path = tmp.name
+    os.rename(tmp_path, staged_file)
+
+
+def process_domain(domain_path, verbose=False):
+    """Process a single domain's session index. Returns (staged, updated, skipped) counts."""
+    sessions_dir = domain_path / ".context" / "sessions"
+    index_file = sessions_dir / "session-index.jsonl"
+
+    if not index_file.exists():
+        return 0, 0, 0
+
+    staged_file = sessions_dir / ".staged-sessions"
+    state = load_staged_state(staged_file)
+
+    entries = []
+    for line in index_file.read_text().splitlines():
+        if line.strip():
+            try:
+                entry = json.loads(line)
+                entry["_domain_path"] = str(domain_path)
+                entries.append(entry)
+            except json.JSONDecodeError:
+                continue
+
+    # Deduplicate: keep first entry per session_id (the startup one)
+    seen = {}
+    for entry in entries:
+        sid = entry.get("session_id", "")
+        if sid and sid not in seen:
+            seen[sid] = entry
+
+    staged_count = 0
+    updated_count = 0
+    skipped_count = 0
+
+    for sid, entry in seen.items():
+        source = entry.get("source", "startup")
+        # Only stage new sessions (not resumes/clears/compactions)
+        if source not in ("startup", ""):
+            if sid not in state:
+                state[sid] = 0
+            skipped_count += 1
+            if verbose:
+                print(f"  skip ({source}): {sid[:12]}...")
+            continue
+
+        # Find transcript
+        transcript_path = find_transcript(entry)
+        if not transcript_path:
+            skipped_count += 1
+            if verbose:
+                print(f"  skip (not found): {sid[:12]}...")
+            continue
+
+        current_size = transcript_path.stat().st_size
+
+        # Skip empty/trivial sessions
+        if current_size < 1000:
+            state[sid] = current_size
+            skipped_count += 1
+            if verbose:
+                print(f"  skip (too small): {sid[:12]}...")
+            continue
+
+        # Check if already staged at this size
+        prev_size = state.get(sid, -1)
+        if prev_size == current_size:
+            skipped_count += 1
+            continue
+
+        is_update = prev_size > 0
+
+        # Extract and write atomically
+        markdown = extract_transcript(transcript_path)
+
+        started = entry.get("started", "")
+        if started:
+            ts = started.replace(":", "-").replace("Z", "")
+        else:
+            ts = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+
+        output_file = sessions_dir / f"{ts}.transcript.md"
+
+        # Atomic write: temp file + rename
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=sessions_dir, prefix=".transcript-", suffix=".tmp", delete=False
+        ) as tmp:
+            tmp.write(markdown)
+            tmp_path = tmp.name
+        os.rename(tmp_path, output_file)
+
+        state[sid] = current_size
+
+        if is_update:
+            updated_count += 1
+            print(f"  updated: {output_file}")
+        else:
+            staged_count += 1
+            print(f"  staged: {output_file}")
+
+    save_staged_state(staged_file, state)
+    return staged_count, updated_count, skipped_count
+
+
+def main():
+    verbose = "--verbose" in sys.argv
+    domains = parse_registry()
+
+    if not domains:
+        print("No domains found in registry.", file=sys.stderr)
+        sys.exit(0)
+
+    total_staged = 0
+    total_updated = 0
+    total_skipped = 0
+
+    for domain_path in domains:
+        if not domain_path.exists():
+            if verbose:
+                print(f"  skip domain (not found): {domain_path}")
+            continue
+
+        staged, updated, skipped = process_domain(domain_path, verbose)
+        if staged > 0 or updated > 0 or (verbose and skipped > 0):
+            print(f"  {domain_path.name}: staged={staged} updated={updated} skipped={skipped}")
+        total_staged += staged
+        total_updated += updated
+        total_skipped += skipped
+
+    print(f"Done. Staged: {total_staged}, Updated: {total_updated}, Skipped: {total_skipped}")
+
+
+if __name__ == "__main__":
+    main()

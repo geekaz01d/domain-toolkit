@@ -1,0 +1,6 @@
+# Run distillation on domains with pending (undistilled) transcripts
+# Requires: claude CLI in PATH, domain-toolkit distiller prompt at __TOOLKIT_ROOT__/distiller-prompt.md
+# Install: crontab -l | cat - ~/.claude/domain-toolkit/cron/distill.cron | crontab -
+# Replace __TOOLKIT_ROOT__ with ~/.claude/domain-toolkit and __HOME__ with your home path.
+# Note: offset from stage-transcripts.cron (runs at :7) to avoid overlap
+37 * * * * __TOOLKIT_ROOT__/bin/distill-pending >> __HOME__/.claude/domain-toolkit/distill.log 2>&1
