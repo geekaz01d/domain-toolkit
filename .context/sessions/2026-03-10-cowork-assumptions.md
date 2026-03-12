@@ -45,6 +45,6 @@ Discussed where to build: Cowork is good for spec work and design sessions. Impl
 
 1. Open firehose in Cursor
 2. Update `touch-domain` skill to match the spec (modal modes, git precheck)
-3. Implement `open-kit` skill
+3. Implement `open-domain` skill
 4. Wire up SessionStart hook
 5. End-to-end test with a real domain

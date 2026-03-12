@@ -1,6 +1,6 @@
 ---
 name: domain-overview
-description: System 4 attention-direction across registered domains. Reads PROFILE.md for each domain in the registry (or a filtered subset) and synthesizes a situational picture — what's active, what's drifting, where attention is needed. Invoked by open-domain --overview.
+description: Cross-domain attention overview. Reads PROFILE.md for each domain in the registry (or a filtered subset) and synthesizes a situational picture — what's active, what's drifting, where attention is needed. Invoked by open-domain --overview.
 user-invocable: false
 model: opus
 argument-hint: "[@group | -f domain_subset.md]"
@@ -8,7 +8,7 @@ argument-hint: "[@group | -f domain_subset.md]"
 
 # domain-overview
 
-This skill is invoked by `open-domain --overview`. It performs the System 4 function: scanning the domain registry, reading each domain's PROFILE.md, and synthesizing a situational picture to direct attention.
+This skill is invoked by `open-domain --overview`. It scans the domain registry, reads each domain's PROFILE.md, and synthesizes a situational picture to direct attention.
 
 ## Not yet implemented.
 

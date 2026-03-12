@@ -34,7 +34,7 @@ This project includes project-local skills under `.claude/skills/` that implemen
 - `/checkpoint` – session capture: writes structured checkpoints into `.context/sessions/`.
 - `/distill-domain` – distillation: transforms session artifacts into canonical `MEMORY.md` / `DECISIONS.md`.
 - `/domain-convention` – agent posture for domain layout and file roles (not user-invocable).
-- `domain-overview` – System 4 attention-direction across domains; invoked via `open-domain --overview` (not yet implemented).
+- `domain-overview` – cross-domain attention overview; invoked via `open-domain --overview` (not yet implemented).
 
 ## Workflow
 

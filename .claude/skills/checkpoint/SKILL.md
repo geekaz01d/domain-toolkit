@@ -31,8 +31,13 @@ Checkpoints belong to a **session** — a coherent unit of work. The skill must 
 
 1. Scan `.context/sessions/` for `.md` files (excluding `.draft.md` and `.log`).
 2. Parse YAML frontmatter. Look for a file with `status: active`.
-3. If found, this is the current session — append the new checkpoint to it.
+3. If found, check whether it belongs to the current conversation:
+   - Compare the session's `created` date against today's date.
+   - If the session was created today, treat it as the current session and append to it.
+   - If the session was created on a prior day (**stale active session**), do not append to it. Leave it untouched — do not close it, as that is the distiller's responsibility. Create a new session file instead, and note in the new checkpoint that a stale active session was found and left intact (include its filename).
 4. If no active session exists, create a new session file.
+
+> **Note:** There is currently no way for the agent to retrieve its own CC session ID to deterministically identify the right file. Until that capability exists, date-based heuristics are the fallback. This is a known limitation — see open feature request.
 
 ### Creating a new session file
 

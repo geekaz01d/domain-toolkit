@@ -15,12 +15,6 @@
       }
     ]
   },
-  "extensions": {
-    "recommendations": [
-      "anthropic.claude-code",
-      "gabrielgrinberg.auto-run-command"
-    ]
-  },
   "settings": {
     "auto-run-command.rules": [
       {
