@@ -2,28 +2,192 @@
 
 ## Overview
 
-The distiller is a standalone process that transforms session artifacts into canonical domain knowledge. It runs **outside** of interactive sessions — scheduled, batched, or on-demand. It is not coupled to the agent or the orchestrator; it operates on the filesystem convention.
+The distiller synthesizes session artifacts into domain memory. It runs **outside** of interactive sessions — scheduled, batched, or on-demand — reading the canonical record of what happened (session transcripts) and producing a curated, human-validated synthesis for future sessions.
 
-The distiller's core principle: **agents never write directly to canonical files**. The distiller is the commit gate. Canonical files (`MEMORY.md`, `DECISIONS.md`) are the distiller's output, not the agent's.
+The distiller is a **second-order observer** (von Foerster). It does not observe the session directly — it observes the artifacts produced by the first-order participants (human and session agent). It is differently positioned, not unbiased. It has its own blind spots. Its value comes from temporal and processual separation — reading cold artifacts off disk, without the sunk-cost reasoning and recency bias of the interactive session.
+
+In Beer's Viable System Model: the session agent is System 3 (inside-and-now, operational), the human is System 4 (outside-and-future, strategic), and the distiller functions as System 5 — mediating the S3-S4 dialectic to maintain identity coherence of the knowledge base. In Ashby's terms, the distiller performs **variety attenuation**: reducing the high-variety session transcript to the requisite variety for future sessions. Per the Law of Requisite Variety, the attenuator needs sufficient internal variety to distinguish signal from noise — the argument for a capable model, not a cheap filter.
+
+## Precedents
+
+The distiller draws on established patterns and emerging research. Naming them clarifies what is borrowed, what is adapted, and what is novel.
+
+**Architecture Decision Records (ADRs).** DECISIONS.md is an ADR log. The append-only semantics, the status lifecycle (`proposed → approved → deprecated → superseded`), and the revisit conditions all come from the ADR pattern (Nygard 2011; adopted by Microsoft, AWS, 18F/GSA). This is the most mature and validated pattern the distiller builds on.
+
+**Blameless postmortems.** The isolation requirement — don't let the same agent that did the work also judge the work — is the same principle behind blameless post-incident reviews (Google SRE). Temporal separation from the session, structured analysis of artifacts, focus on what happened rather than attachment to outcomes. The distiller is an automated blameless postmortem for agent sessions.
+
+**Constitutional AI.** The distiller's governance principles function like Anthropic's constitutional AI framework (Bai et al. 2022): a fixed set of rules that guide meta-evaluation of first-order outputs. The distiller prompt embeds principles (weight outcomes over reasoning, preserve human intent) that constrain synthesis the way a constitution constrains self-critique. The risk is the same: if the principles are wrong, the distiller enforces them blindly.
+
+**Generative Agent reflection.** Park et al. (2023) introduced a reflection layer where agents generate higher-level summaries from stored experiences to inform future planning. The distiller is architecturally similar — post-session reflection over stored artifacts — but differs in two ways: it runs as an isolated process (not the same agent reflecting on itself), and its output requires human validation.
+
+**Recursive summarization.** Xu et al. (2023) proposed iterative memory updates for long dialogues: each session's content is fused with prior memory to produce an updated summary, forming a memory chain. The distiller follows this pattern — each distillation builds on existing MEMORY.md + new transcripts — with the addition of a review gate between iterations.
+
+**Multi-agent debate.** Du et al. (2023) showed that multiple LLM instances proposing and cross-reviewing solutions improves factuality. This is relevant to the adversarial synthesis strategy (Stage 2), where a second model reviews the first's proposals. The literature suggests structured iteration between models produces better results than single-pass synthesis.
+
+**CoT unfaithfulness.** The spec's instruction to weight outcomes over reasoning traces is grounded in recent findings that LLM chain-of-thought is often post-hoc rationalization rather than faithful reasoning (Barez et al. 2025, Arcuschin et al. 2025). He et al. (2026) further show that LLMs have latent reasoning modes independent of explicit CoT. The distiller must treat thinking blocks as positioned artifacts, not transparent computation traces.
+
+**Closest system-level comparators.** Hindsight (Latimer et al. 2024) organizes memory into four networks with retain/recall/reflect operations — the reflect operation maps to distillation. A-Mem (Xu et al. 2025, NeurIPS) uses Zettelkasten-style self-organizing memory with evolution. MemOS (2025) treats memory as a governed resource with provenance and access control. Mem0 performs intelligent consolidation with recency-based conflict resolution. None of these combine processual isolation, human review gate, and canonical permanence with derived re-synthesizability — that combination appears to be novel.
+
+## Governance
+
+The distiller exists to serve a governance model. This section defines it.
+
+### Core principle: humans author intent, agents are custodial
+
+The human originates purpose, makes decisions, and steers direction. The agent maintains, executes, and preserves — but does not originate intent. This is not a safety guardrail. It is a claim about what produces better outcomes: humans are better at intent, direction, and judgment about what matters; agents are better at execution, recall, and thoroughness. The governance model allocates authority according to capability.
+
+The distiller enforces this governance by ensuring human intent — as articulated in the session transcript — survives into synthesized domain memory. The human's decisions are the most important signal in the transcript. **Failure to capture and surface the human's decisions is a failure mode of the distiller.** A distillation that accurately summarizes what the agent did but loses what the human decided has failed its core function.
+
+### What this means in practice
+
+- **Session transcripts are the canonical record.** They preserve the human's articulated intent verbatim. The transcripts are not interpreted, not summarized — they are the actual words. This is a governance choice, not just an engineering one.
+- **Synthesized files are derived, not canonical.** MEMORY.md and DECISIONS.md are the distiller's synthesis of the canonical record, validated by the human. They can be re-derived when the distiller improves. The session corpus cannot be re-derived — it just is.
+- **The review gate is the governance boundary.** `status: proposed` is not review-for-quality — it is the human validating that the synthesis accurately reflects their intent. The human approves because the human is the authority.
+- **Decisions are append-only with lifecycle statuses.** The distiller adds to DECISIONS.md but never modifies or removes entries. If a revisit condition is met, the distiller flags it — but only the human can supersede a decision, because decisions are authored intent. Following the ADR pattern, decisions carry a status: `proposed → approved → deprecated → superseded`. Superseding a decision means adding a new decision that references the old one — the original entry is never modified or deleted.
+- **Agents never write to synthesized files.** The session agent cannot author domain memory because it is not the author of intent. Staged writes enforce custodial agency.
+
+## Terminology
+
+| Term | Meaning |
+|------|---------|
+| **Canonical** | The verbatim session record (CC JSONL, transcripts). Source of truth. Not interpreted. |
+| **Derived (first-order)** | Artifacts produced by the session agent during the session: CC native memory, tool outputs. Reflect the agent's in-session interpretation. Not reviewed. |
+| **Synthesized (second-order)** | MEMORY.md, DECISIONS.md. Produced by the distiller from canonical and first-order sources. Human-validated. The operational interface future sessions read. |
+| **Session agent** | The agent instance within an interactive session. Produces first-order artifacts. Custodial. |
+| **Human** | The human participant. Author of intent. Their articulated direction in the transcript is authoritative. |
+| **Distiller** | Second-order observer. Reads canonical and first-order artifacts. Produces synthesized state. Proposes; does not decide. |
+
+## Artifact Layers
+
+The system produces artifacts at three levels. Each level is written by a different process at a different order of observation.
+
+### Canonical layer (the session record)
+
+- **CC session JSONL** — the complete interaction record, written continuously by the CC runtime. Contains human messages (intent), agent messages (reasoning, including thinking blocks), and tool calls (actions). This is the source of truth for everything that happened.
+- **Staged transcripts** (`.context/sessions/*.transcript.md`) — extracted from JSONL by the stager. A readable form of the canonical record. Derived but faithful — can always be re-extracted.
+
+The canonical layer is **permanent and unreduced**. Sessions are the durable corpus. The distiller is a replaceable lens over this corpus.
+
+### First-order layer (session agent artifacts)
+
+- **CC native auto-memory** (`~/.claude/projects/<encoded-path>/memory/`) — memories the session agent writes via CC's built-in memory system. First-order: written from inside the session, carrying whatever biases and framing the agent held at the time. CC loads these automatically on every session start.
+
+First-order artifacts reflect what happened and what the agent believed, not what should be remembered. They are raw material for synthesis, not authoritative.
+
+### Synthesized layer (distiller output)
+
+- **MEMORY.md** — curated domain knowledge for future sessions. Produced by the distiller, validated by the human.
+- **DECISIONS.md** — append-only decision log with rationale and revisit conditions. Same governance: distiller proposes, human approves.
+
+Synthesized artifacts are **derived and governed**. They represent the human-validated understanding of the domain, produced through dialectical synthesis of human intent and agent execution. They can be re-synthesized when the distiller improves.
+
+### The memory conflict problem
+
+CC's native memory and the domain kit's MEMORY.md serve different functions but occupy the same cognitive space for the session agent. Both are loaded on session start. When they diverge — and they will, because CC memory is first-order and unsynthesized — the session agent carries contradictory context. This is not a theoretical risk; it is a guaranteed reasoning burden that compounds over time.
+
+This is the central architectural tension of Stage 1.
+
+### CC memory controls (researched 2026-03-12)
+
+CC officially supports three mechanisms for controlling its native memory:
+
+| Mechanism | Scope | How |
+|-----------|-------|-----|
+| `autoMemoryEnabled: false` | Per-project | `.claude/settings.json` |
+| `autoMemoryDirectory` | User-level only | `~/.claude/settings.json` or `~/.claude/settings.local.json`. Cannot be set per-project (security restriction). |
+| `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` | Global (env var) | Disables all auto-memory |
+
+Additionally, an undocumented `CLAUDE_CODE_AUTO_MEMORY_PATH` env var exists (v2.1.64+) but lacks documentation on precedence rules. See [GitHub #30579](https://github.com/anthropics/claude-code/issues/30579).
+
+**Key constraint**: `autoMemoryDirectory` is user-level only. It cannot be set per-domain. A multi-domain setup cannot redirect each domain's CC memory to its own `.context/` — the redirect is global.
+
+### Resolution options
+
+- **Option A: Redirect CC memory into `.context/`** — use `autoMemoryDirectory` to point CC memory into the domain's context directory. *Problem*: user-level only, so one global redirect. Doesn't work for multi-domain use where each domain needs its own memory.
+
+- **Option B: Disable CC memory, use domain memory exclusively** — set `autoMemoryEnabled: false` in each domain's `.claude/settings.json`. The session agent reads only what the session-start hook injects (synthesized domain memory). CC never writes competing first-order memory. *This aligns with the governance model*: the session agent is custodial and should not author persistent memory. Domain memory is the synthesized, human-validated layer. Disabling CC's native memory enforces the governance boundary.
+
+- **Option C: Accept duality, mitigate in hook** — the session-start hook injects domain memory with framing that supersedes CC native memory. Band-aid — the agent still has two sources and must reason about which to trust.
+
+**[DECISION PENDING]**: Option B is the strongest governance fit. Option A is viable only for single-domain setups. Option C is a fallback. This decision should be made when Stage 1 implementation begins.
+
+Until this is resolved, the spec cannot claim domain kit completeness.
+
+## Stages
+
+### Stage 0 — Status quo (CC native)
+
+CC has its own session memory. It is machine-stored at `~/.claude/projects/<encoded-path>/memory/`, non-portable, and not governed. The session agent reads and writes it freely. There is no synthesis loop, no human review, and no way to re-derive the memory from source material.
+
+This is the deficiency the domain kit addresses.
+
+### Stage 1 — Domain-local portability (MVP)
+
+Session artifacts are stored domain-local in `.context/` and become portable. The session agent reads synthesized domain memory on entry via the session-start hook. The canonical session record (JSONL/transcripts) lives alongside the synthesized files it feeds.
+
+**Stage 1 must resolve the memory conflict** — either by redirecting CC native memory after synthesis, or by establishing domain memory as the sole authoritative source the session agent reads. Without this, the domain kit has two competing memory systems and no clear authority.
+
+**What Stage 1 delivers:**
+- Session transcripts staged domain-local (`.context/sessions/`)
+- Synthesized MEMORY.md and DECISIONS.md in `.context/`
+- Human review gate (`status: proposed` frontmatter)
+- Manual `distill <domain>` invocation
+- CC memory conflict resolution (redirect or archive after synthesis)
+
+### Stage 2 — Synthesis orchestration
+
+The synthesis process becomes modular. We do not know what the best technique will be — it may differ by domain. Stage 2 provides an orchestration framework, not a single prompt.
+
+**What Stage 2 delivers:**
+- Pluggable strategies (single-model, multi-model, adversarial, custom)
+- Strategy selection per domain via `agent.md`
+- Multi-pass synthesis with human-in-the-loop option
+- Conflict detection and reporting (`DISTILL-CONFLICTS.md`)
+- Re-synthesis capability (reprocess corpus with improved prompt or model)
+
+### Stage 2.5 — Automation
+
+The synthesis loop runs unattended.
+
+**What Stage 2.5 delivers:**
+- Cron-driven transcript staging (`bin/stage-transcripts`)
+- Cron-driven synthesis across the domain registry
+- Batch processing (`distill --all`)
+- Synthesis markers in JSONL (high-water marks for incremental processing)
+- No dependency on running IDE or interactive session
+
+## Two Perspectives in the Transcript
+
+The session transcript contains two first-order perspectives:
+
+- **Human** (author of intent): steers the session, makes decisions, articulates direction. The transcript preserves this verbatim — the human's words are the authoritative record of intent.
+- **Session agent** (custodial): executes, reasons through problems, produces artifacts. Thinking blocks and tool calls are operational evidence. Subject to completion bias, sunk-cost reasoning, and CoT unfaithfulness (Barez et al. 2025, Arcuschin et al. 2025) — the distiller interprets these as positioned artifacts, not transparent computation traces.
+
+### How the distiller reads the transcript
+
+1. **Read the full transcript** — including thinking blocks. Understand what was explored, what was tried, what worked, what didn't.
+2. **Recognize human intent** — track what the human articulated, how direction evolved through the session. If the human changed direction mid-session, that is intent evolving, not error.
+3. **Interpret agent reasoning** — weight outcomes and actions (what was committed, what tool calls produced) over reasoning traces (why the agent said it did something). Distinguish reasoning the agent explored and abandoned from conclusions it acted on.
+4. **Synthesize:**
+   - Human intent that should persist as decisions → `DECISIONS.md`
+   - Knowledge and context that future sessions need → `MEMORY.md`
+   - Contradictions between session material and existing synthesized state → `DISTILL-CONFLICTS.md`
+   - If the distiller's interpretation of intent conflicts with what the human articulated → flag for human review. The distiller proposes; it does not override articulated intent.
 
 ## Access Boundaries
 
-The system enforces clean separation between who reads and writes what:
-
-| Actor | Session transcripts | Checkpoints | Canonical files | CC session JSONL |
-|-------|-------------------|-------------|-----------------|------------------|
-| **Working agent** | Never reads or writes. | Writes (append-only via `/checkpoint`). | Reads on entry. Never writes. | Written by CC runtime. Agent unaware. |
-| **Stager** (`stage-transcripts`) | Writes (extracts from JSONL). | Never touches. | Never touches. | Reads (source of truth). |
-| **Distiller** | Reads (primary input). | Reads (attention markers). | Writes (proposed or committed updates). | Appends `[DOMAIN-TOOLKIT]` marker on completion. |
-| **Human** | Can author directly (drop a .md into sessions/). | Can author directly. | Approves distiller proposals. Can edit directly. | Sees marker if resuming a distilled session. |
-
-The agent's job during a session is twofold: do the work, and optionally lay down checkpoints at important moments. The **transcript** (extracted from CC's native session JSONL) is the primary record — it captures everything including thinking blocks. Checkpoints are the human or agent saying "this moment matters" — attention markers, not the primary source.
+| Actor | Session transcripts | Synthesized files | CC session JSONL | CC native memory |
+|-------|-------------------|-----------------|------------------|-----------------|
+| **Session agent** | Never reads or writes. | Reads on entry. Never writes. | Written by CC runtime. Agent unaware. | Reads on entry. Writes in-session (first-order). |
+| **Stager** (`stage-transcripts`) | Writes (extracts from JSONL). | Never touches. | Reads (source of truth). | Never touches. |
+| **Distiller** | Reads (primary input). | Writes (proposed or committed updates). | Appends `[DOMAIN-TOOLKIT]` marker on completion. | Reads (first-order evidence). Manages after synthesis (see memory conflict). |
+| **Human** | Can author directly (drop a .md into sessions/). | Approves distiller proposals. Can edit directly. | Sees marker if resuming a distilled session. | Can edit directly. |
 
 ## Session Lifecycle
 
 ### Source of truth
 
-Claude Code writes a JSONL file per session at `~/.claude/projects/<encoded-project-path>/<session-id>.jsonl`. This file contains everything: user messages, assistant messages (with thinking blocks), tool calls and results. It is written continuously by CC — every turn appends.
+Claude Code writes a JSONL file per session at `~/.claude/projects/<encoded-project-path>/<session-id>.jsonl`. This file contains everything: human messages, assistant messages (with thinking blocks), tool calls and results. It is written continuously by CC — every turn appends.
 
 The **stager** (`bin/stage-transcripts`) extracts these JSONL files into readable `.transcript.md` files in `.context/sessions/`. The staged transcript is a derived artifact — the JSONL is the source of truth.
 
@@ -37,91 +201,73 @@ Session state is tracked in `.context/sessions/.staged-sessions`, a TSV file:
 
 The stager updates this on every run. If the JSONL has grown (session was continued), the stager re-extracts and overwrites the transcript atomically.
 
-### Distillation marker
+### Synthesis marker
 
-When the distiller finishes processing a session, it appends a **`[DOMAIN-TOOLKIT]` marker** directly to the CC session JSONL — a user-type message that serves three purposes:
+When the distiller finishes processing a session, it appends a **`[DOMAIN-TOOLKIT]` marker** directly to the CC session JSONL — a human-type message that serves three purposes:
 
 1. **Human sees it** when browsing or resuming the session in CC
-2. **Agent sees it** if the session is continued — knows prior content has been captured
+2. **Session agent sees it** if the session is continued — knows prior content has been captured
 3. **Distiller sees it** on subsequent runs — the marker is the high-water mark
 
 The marker format:
 
 ```
 [DOMAIN-TOOLKIT] ─────────────────────────────────────
-⚑ Session distilled at <timestamp>
+⚑ Session synthesized at <timestamp>
 
 Content above this line has been processed into
 MEMORY.md and DECISIONS.md for this domain.
 
 If you continue this session, new content will need
-to be distilled separately.
+to be synthesized separately.
 ──────────────────────────────────────────────────────
 ```
 
-This is appended as a regular user message (`isMeta: false`) so it renders visibly in CC's conversation view.
+This is appended as a regular human message (`isMeta: false`) so it renders visibly in CC's conversation view.
 
 ### Continued sessions
 
-If a session is continued after distillation:
+If a session is continued after synthesis:
 
 1. New content lands in the JSONL after the `[DOMAIN-TOOLKIT]` marker
 2. The stager detects the JSONL has grown (size > recorded size) and re-extracts the full transcript
 3. The distiller, on its next run, sees the marker and knows to process only content after it
 
-### Re-distillation
+### Re-synthesis
 
-The session JSONL corpus is the durable asset. To re-distill:
+The session JSONL corpus is the durable asset. To re-synthesize:
 
 - Remove the `[DOMAIN-TOOLKIT]` marker from the JSONL (or the stager entry from `.staged-sessions`)
 - The distiller will reprocess the full session
 
-Useful when the distiller prompt has improved, a better model is available, or canonical files were corrupted.
-
-### Checkpoints
-
-Checkpoints (`/checkpoint`) are **attention markers**, not the primary source material. They signal "this moment matters" — laid down by either the human or the agent during a session. The distiller pays extra attention to checkpointed moments but does not depend on checkpoints existing. A session with no checkpoints is still fully distillable from the transcript alone.
-
-`/checkpoint --close` remains a human signal that the session is done — useful for triggering immediate distillation rather than waiting for the cron job to detect a stable session.
+Useful when the distiller prompt has improved, a better model is available, or synthesized files have drifted.
 
 ## Interface Contract
 
 **Input:**
-- Session transcripts from `.context/sessions/*.transcript.md` (primary source — includes thinking blocks)
-- Checkpoint files from `.context/sessions/*.md` (attention markers — optional)
-- Current canonical state: `MEMORY.md`, `DECISIONS.md`
+- Session transcripts from `.context/sessions/*.transcript.md` (includes thinking blocks)
+- CC native auto-memory (`~/.claude/projects/<encoded-path>/memory/`) — first-order operational memory the session agent carried into and updated during the session
+- Current synthesized state: `MEMORY.md`, `DECISIONS.md`
 - Domain context: `README.md`, `STATE.md` (for grounding)
 
 **Output:**
 - Updated `MEMORY.md` (with frontmatter indicating `status: proposed` or committed directly, per review mode)
 - Updated `DECISIONS.md` (same frontmatter convention)
-- Conflict report in `DISTILL-CONFLICTS.md` (if proposed changes contradict existing canonical material)
+- Conflict report in `DISTILL-CONFLICTS.md` (if proposed changes contradict existing synthesized material)
 
 **Side effects:**
 - `[DOMAIN-TOOLKIT]` marker appended to the CC session JSONL (high-water mark)
 - `.staged-sessions` updated to reflect processed state
-
-## Trigger Modes
-
-| Mode | Trigger | Execution Context |
-|------|---------|-------------------|
-| **Scheduled** | Cron job detects staged transcripts without `[DOMAIN-TOOLKIT]` markers | System-level. No interactive session. Primary path. |
-| **Manual** | `distill <domain>` or `/distill-domain` skill | From any terminal or session. Human-initiated. |
-| **Batch** | `distill --all` | Iterates registry. Processes all domains with pending work. |
-| **Explicit close** | `/checkpoint --close` during a session | Human signal that session is done — triggers immediate distillation. |
-
-The **scheduled cron job** is the primary trigger. It walks the domain registry, checks each domain's `.context/sessions/` for transcripts that haven't been fully distilled (by scanning the source JSONLs for `[DOMAIN-TOOLKIT]` markers), and runs distillation against those domains. This decouples distillation from the working session entirely.
-
-The signal is: **staged transcripts exist whose source JSONLs have content after (or without) a `[DOMAIN-TOOLKIT]` marker**.
+- CC native memory managed (redirect/archive per memory conflict resolution)
 
 ## Review Gate
 
-The distiller uses frontmatter on canonical files to stage proposals:
+The distiller uses frontmatter on synthesized files to stage proposals:
 
 ```yaml
 ---
 status: proposed
-distilled_at: 2026-03-10T18:30:00
+synthesized_at: 2026-03-10T18:30:00
 source_sessions:
   - 2026-03-10T14-37-22
   - 2026-03-10T16-52-00
@@ -132,7 +278,7 @@ The review mode (from `agent.md`) determines what happens:
 
 | Mode | Behavior | Configured In |
 |------|----------|---------------|
-| `manual` | Canonical files written with `status: proposed`. Human reviews and approves (removes/updates frontmatter). | agent.md |
+| `manual` | Synthesized files written with `status: proposed`. Human reviews and approves (removes/updates frontmatter). | agent.md |
 | `flag` | Non-conflicting changes committed directly. Conflicts written as `status: proposed`. | agent.md |
 | `auto` | All changes committed directly. Conflicts logged but resolved last-write-wins. | agent.md |
 
@@ -140,73 +286,64 @@ Default is `manual`. Per-domain override via `memory_review` setting in agent.md
 
 Approval is flipping `status: proposed` to `status: approved` (or removing the frontmatter entirely). The human can also edit the content during review.
 
-## Three Perspectives
+## Trigger Modes
 
-Three distinct viewpoints produce knowledge about a session:
+| Mode | Trigger | Execution Context | Stage |
+|------|---------|-------------------|-------|
+| **Manual** | `distill <domain>` or `/distill-domain` skill | From any terminal or session. Human-initiated. | 1 |
+| **Scheduled** | Cron job detects staged transcripts without `[DOMAIN-TOOLKIT]` markers | System-level. No interactive session. | 2.5 |
+| **Batch** | `distill --all` | Iterates registry. Processes all domains with pending work. | 2.5 |
 
-- **Human** (subjective): steers the session, makes decisions, lays down checkpoints at moments they consider important. Carries intent and priorities the agent may not fully grasp.
-- **Working agent** (subjective): writes checkpoint summaries and memory drafts, reasons through problems in thinking blocks. Carries the in-session perspective — attached to outcomes, influenced by recency and sunk cost.
-- **Distiller** (objective): reads the full session transcript off disk post-session. Has access to everything — the human's words, the agent's thinking blocks, the tool calls, the checkpoints. Evaluates without attachment.
+The **scheduled cron job** (Stage 2.5) walks the domain registry, checks each domain's `.context/sessions/` for transcripts that haven't been fully synthesized (by scanning the source JSONLs for `[DOMAIN-TOOLKIT]` markers), and runs synthesis against those domains. This decouples synthesis from the interactive session entirely.
 
-The distiller's job is to **form its own view first**, then weigh it against the human and agent perspectives. Assume both the human and the agent may have lost the plot. The distiller should cut through noise to see things plainly, then consider this on balance with the human and agent's perspectives. The best truth should end up in `MEMORY.md` and `DECISIONS.md`.
+The signal is: **staged transcripts exist whose source JSONLs have content after (or without) a `[DOMAIN-TOOLKIT]` marker**.
 
-### How the distiller weighs perspectives
-
-1. **Read the full transcript** — including thinking blocks. Understand what was explored, what was tried, what worked, what didn't.
-2. **Form an independent view** — what are the real decisions, insights, and learnings from this session? What matters for future sessions?
-3. **Read any checkpoints** — these are attention markers from the human and agent. They signal "this moment matters."
-4. **Compare all three views:**
-   - **Agreement across all three**: high confidence. Commit.
-   - **Distiller sees something others missed**: likely real — the participants may have been too close to notice. Include it.
-   - **Human or agent flagged something the distiller doesn't extract**: important signal — they had live context (tone, reactions, subtext). Surface this rather than silently dropping their view.
-   - **Direct contradiction**: flag for human review. The distiller's job is to surface the disagreement clearly, not to be the tiebreaker.
-
-## Distillation Strategies
+## Synthesis Strategies (Stage 2)
 
 The distiller's internal processing is a **black box with a pluggable strategy**. The interface contract stays the same regardless of strategy. Strategies are specified in agent.md or as CLI arguments.
 
-### Simple (default)
+We do not yet know what the best synthesis technique is. It may vary by domain — a high-stakes domain with complex decisions may need adversarial multi-pass review, while a routine domain may be well-served by a single model call. The framework must support experimentation.
 
-Single model call. Prompt includes session transcript, any checkpoints, existing canonical files, and instructions to produce structured updates.
+### Simple (default for Stage 1)
 
-- Model: configurable, default **Opus-tier** — distillation is judgment-heavy, not mere summarization. The distiller must independently assess reasoning quality, spot where the human or agent lost the plot, and extract the best truth.
+Single model call. Prompt includes session transcript, existing synthesized files, and instructions to produce structured updates.
+
+- Model: configurable, default **Opus-tier** — synthesis is judgment-heavy, not mere summarization. The distiller must recognize human intent, interpret agent reasoning, and synthesize both.
 - Can be downgraded to Sonnet for routine/low-stakes domains once a proven prompt exists
-
-### Careful
-
-Single model call with a higher-tier model (Sonnet or Opus).
-
-- Used for domains with high-stakes decisions or complex context
-- More expensive but better at nuance, conflict detection, and judgment calls
 
 ### Adversarial
 
-Multi-model or multi-pass review.
+Multi-model or multi-pass review. Grounded in multi-agent debate literature (Du et al. 2023) and dialectical prompting (Abdali et al. 2025, who implement thesis–antithesis–synthesis cycles in LLMs). Computational argumentation frameworks (Fröhlich et al. 2024) suggest that feeding claims through formal argument graphs produces more robust outputs than single-pass reasoning.
 
 - Pass 1: generate proposed updates (any model)
-- Pass 2: adversarial review — a second model (or same model, different prompt) evaluates the proposals against existing canonical state, checks for conflicts, omissions, mischaracterizations
+- Pass 2: adversarial review — a second model (or same model, different prompt) evaluates the proposals against existing synthesized state, checks for conflicts, omissions, mischaracterizations
 - Pass 3 (optional): reconciliation if the reviewer flagged issues
-
-More expensive, higher quality. Appropriate for domains where memory accuracy is critical.
 
 ### Custom
 
-User-defined strategy. The distiller accepts a strategy script or prompt template, enabling arbitrary processing pipelines.
+Human-defined strategy. The distiller accepts a strategy script or prompt template, enabling arbitrary processing pipelines. This is the extensibility point — custom flows, multiple models, human-in-the-loop at any stage.
 
 ## Prompt Structure
 
 The distiller prompt (for the simple strategy) follows this general shape:
 
 ```
-You are a distillation agent. Your job is to read a full session transcript —
-including the agent's thinking blocks — and extract the important reasoning,
-decisions, and knowledge into canonical domain files.
+You are a synthesis agent — a second-order observer. You read session
+transcripts after the fact, from outside the session. You are differently
+positioned from the participants, not objective. You have your own blind
+spots. Your value comes from temporal separation and fresh perspective.
 
-You are objective. The human and the agent may have lost the plot during
-the session. Your job is to cut through noise and see things plainly,
-then weigh your assessment against theirs.
+Your governance model: humans author intent, agents are custodial.
+The human's words in the transcript are the authoritative record of intent.
+The agent's reasoning and actions are operational evidence — useful but
+subject to completion bias and CoT unfaithfulness. Weight outcomes and
+actions over reasoning traces.
 
-## Existing Canonical State
+Failure to capture and surface the human's decisions is a failure of
+this synthesis. If the human articulated a decision, direction change,
+or judgment call, it MUST appear in the output.
+
+## Existing Synthesized State
 
 ### MEMORY.md
 <contents of current MEMORY.md>
@@ -214,31 +351,36 @@ then weigh your assessment against theirs.
 ### DECISIONS.md
 <contents of current DECISIONS.md>
 
+## CC Native Memory (first-order, session agent)
+<contents of ~/.claude/projects/<encoded-path>/memory/>
+
+Note: This is first-order operational memory — written by the session agent,
+without review. If it diverges from synthesized MEMORY.md, flag the discrepancy.
+
 ## Session Transcript
-
 <full transcript including thinking blocks, tool calls, and conversation>
-
-## Checkpoints (attention markers)
-
-<any checkpoint files from this session — these are moments the human
-or agent flagged as important. Pay extra attention here, but do not
-depend on them exclusively.>
 
 ## Instructions
 
 1. Read the full transcript. Understand what was explored, what was
-   tried, what worked, what didn't. Pay attention to thinking blocks —
-   they reveal the agent's actual reasoning, not just its output.
-2. Form your own independent view: what are the real decisions, insights,
-   and learnings? What matters for future sessions in this domain?
-3. Compare your view against any checkpoints and memory drafts the agent
-   produced. Note agreement and disagreement.
-4. Identify new knowledge for MEMORY.md — things that should persist
-5. Identify decisions for DECISIONS.md — with rationale and revisit conditions
-6. Flag any conflicts between session material and existing canonical state
-7. Preserve the existing structure of MEMORY.md sections
-8. DECISIONS.md entries are append-only — never modify existing entries
-9. If a previous decision's revisit conditions appear to be met, flag explicitly
+   tried, what worked, what didn't.
+2. Recognize human intent — track what the human articulated and how
+   their direction evolved. If direction changed mid-session, that is
+   intent evolving, not error.
+3. Interpret agent reasoning — distinguish explored-and-abandoned
+   reasoning from conclusions the agent acted on. Thinking blocks are
+   generated outputs, not transparent computation traces.
+4. Identify decisions for DECISIONS.md — with rationale and revisit
+   conditions. Decisions reflect human intent as articulated in the
+   transcript. This is the most important output.
+5. Identify new knowledge for MEMORY.md — things future sessions need.
+6. Flag any conflicts between session material and existing synthesized state.
+7. Flag any divergence between CC native memory and synthesized MEMORY.md.
+8. Preserve the existing structure of MEMORY.md sections.
+9. DECISIONS.md entries are append-only — never modify existing entries.
+10. If a previous decision's revisit conditions appear to be met, flag explicitly.
+11. If your interpretation of intent conflicts with what the human
+    articulated, flag it — do not silently override.
 
 ## Output Format
 
@@ -251,39 +393,37 @@ Produce three sections:
 [New entries only, in the standard format]
 
 ### Conflicts
-[Any contradictions between session material and existing canonical state,
-including cases where your assessment disagrees with the human or agent's]
+[Any contradictions between session material and existing synthesized state,
+divergence between CC native memory and synthesized state, or between your
+interpretation and the human's articulated intent]
 ```
 
 ## Conflict Handling
 
-Conflicts arise when session material contradicts existing canonical state. Examples:
+Conflicts arise when session material contradicts existing synthesized state. Examples:
 
-- Agent concluded X, but MEMORY.md records Y from a prior session
+- Session agent concluded X, but MEMORY.md records Y from a prior session
 - A new decision contradicts or supersedes a previous decision
 - Session material suggests a revisit condition has been met
+- CC native memory diverges from synthesized MEMORY.md
 
 The distiller surfaces conflicts explicitly in `DISTILL-CONFLICTS.md`. It does not silently resolve them. In `manual` mode, conflicts are presented to the human. In `flag` mode, conflicts block auto-commit for affected entries. In `auto` mode, conflicts are logged but the most recent session material wins (last-write-wins).
 
-## Session Artifact Processing
+## What the Distiller Reads
 
-### What the distiller reads
-
-1. **Session transcripts** (`<timestamp>.transcript.md`): Primary input. The full session record extracted from CC's JSONL, including user messages, assistant messages, thinking blocks, and tool call summaries.
-
-2. **Checkpoint files** (`<timestamp>.md`): Attention markers. Moments the human or agent flagged as important during the session. The distiller pays extra attention here but does not depend on checkpoints existing.
-
-3. **Memory drafts** (embedded in checkpoint files): The agent's own assessment of what should be remembered. A secondary signal for comparison.
+1. **Session transcripts** (`<timestamp>.transcript.md`): The canonical session record extracted from CC's JSONL, including human messages, assistant messages, thinking blocks, and tool call summaries. Primary source material.
+2. **CC native auto-memory** (`~/.claude/projects/<encoded-path>/memory/`): First-order memories the session agent wrote or updated. Reveals what the agent believed was important enough to persist — useful as evidence, not authoritative. Divergence from synthesized MEMORY.md is flagged.
 
 ### Processing order
 
-1. Read existing canonical state (MEMORY.md, DECISIONS.md)
-2. Read session transcripts, chronologically
-3. Read any checkpoint files for attention markers
+1. Read existing synthesized state (MEMORY.md, DECISIONS.md)
+2. Read CC native memory (first-order context)
+3. Read session transcripts, chronologically
 4. Run the selected strategy
-5. Write updated canonical files (with appropriate frontmatter per review mode)
-6. Append `[DOMAIN-TOOLKIT]` distillation marker to the CC session JSONL
-7. Write `DISTILL-CONFLICTS.md` if conflicts were detected
+5. Write updated synthesized files (with appropriate frontmatter per review mode)
+6. Manage CC native memory (redirect/archive per memory conflict resolution)
+7. Append `[DOMAIN-TOOLKIT]` synthesis marker to the CC session JSONL
+8. Write `DISTILL-CONFLICTS.md` if conflicts were detected
 
 ### Human-authored session notes
 
@@ -292,32 +432,32 @@ The distiller does not care who authored session artifacts. If a human drops a m
 ## CLI Interface
 
 ```
-distill <domain>                     # distill a single domain (closed sessions)
-distill --all                        # distill all domains with closed sessions
+distill <domain>                     # synthesize a single domain
+distill --all                        # synthesize all domains with pending sessions
 distill <domain> --strategy careful  # override strategy for this run
 distill <domain> --model opus        # override model for this run
-distill <domain> --re-distill        # reset distilled sessions to closed, re-run
+distill <domain> --re-synth          # reprocess corpus (remove markers, re-run)
 distill <domain> --dry-run           # show what would be processed, don't execute
-distill --pending                    # list all domains with closed (undistilled) sessions
+distill --pending                    # list all domains with unsynthesized sessions
 ```
 
 ## Implementation Notes
 
 ### Isolation Requirement
 
-The distiller **must** run in isolated context — a separate Claude Code invocation with no access to the working session's conversation history. This is a debiasing mechanism, not an implementation convenience. The working agent carries completion bias and sunk-cost reasoning from its session. The distiller reads cold artifacts off disk and evaluates them without attachment to outcomes.
+The distiller **must** run in isolated context — a separate Claude Code invocation with no access to the interactive session's conversation history. This is a debiasing mechanism, not an implementation convenience. The session agent carries completion bias and sunk-cost reasoning. The distiller reads cold artifacts off disk and evaluates them without attachment to outcomes.
 
 Invocation:
 
 ```bash
 cd /path/to/domain && claude -p \
   --system-prompt-file ~/sources/domain-toolkit/distiller-prompt.md \
-  "Distill this domain"
+  "Synthesize this domain"
 ```
 
 Print mode (`-p`), fresh session, no shared context. The distiller reads `.context/sessions/` and `.context/MEMORY.md` / `DECISIONS.md` from disk. Running from the domain root avoids cross-project permission issues.
 
-### Transcript Staging (cron)
+### Transcript Staging (Stage 2.5)
 
 A cron job (`bin/stage-transcripts`) runs periodically and:
 
@@ -329,47 +469,70 @@ A cron job (`bin/stage-transcripts`) runs periodically and:
 
 This is a lightweight I/O operation — no model calls, no Claude invocations.
 
-### Scheduled Distillation (cron)
+### Scheduled Synthesis (Stage 2.5)
 
 A separate cron job runs periodically (e.g., hourly or nightly) and:
 
 1. Reads the domain registry (`~/.claude/domain-toolkit/REGISTRY.md`)
 2. For each domain, scans `.context/sessions/` for `.transcript.md` files
-3. Checks the source JSONLs for `[DOMAIN-TOOLKIT]` markers — sessions with content after (or without) a marker need distillation
+3. Checks the source JSONLs for `[DOMAIN-TOOLKIT]` markers — sessions with content after (or without) a marker need synthesis
 4. Invokes the distiller for domains with pending work
 5. Logs results
 
 This requires no interactive session, no running IDE, no parent process. The signal is on disk.
 
-### Phase 1 — Minimal
-
-- Headless `claude -p` with distillation system prompt (`distiller-prompt.md`)
-- Writes canonical files with `status: proposed` frontmatter
-- Human reviews and approves by editing frontmatter
-- Manual `distill <domain>` invocation
-
-### Phase 2 — Automation
-
-- Cron job for scheduled distillation across registry
-- `--re-distill` command for reprocessing
-- Strategy selection from agent.md config
-- Conflict report generation
-
-### Phase 3 — Advanced
-
-- Adversarial strategy implementation
-- Distillation quality metrics (how often does the human reject proposals?)
-- Distiller prompt versioning (track which prompt version produced each distillation)
-- Corpus-wide re-distillation when the distiller improves
-
 ## Design Principles
 
-1. **CC's JSONL is the source of truth.** Session JSONL files are the durable corpus — written continuously by CC, never modified by domain-toolkit except to append `[DOMAIN-TOOLKIT]` markers. Transcripts are derived artifacts that can always be re-extracted.
-2. **Transcripts over checkpoints.** The full session record (including thinking blocks) is the primary input for distillation. Checkpoints are attention markers — valuable but optional.
-3. **Objective distillation.** The distiller forms its own view before considering the human and agent's perspectives. Assumes either may have lost the plot. The best truth wins.
-4. **Staged, not direct.** Agents never write to canonical files. The distiller writes with an approval gate (frontmatter `status: proposed`).
-5. **Standalone.** The distiller is not part of the agent or the orchestrator. It's a separate tool that reads and writes to the filesystem.
-6. **Strategy is configuration.** The interface contract doesn't change when you swap strategies. Simple, careful, adversarial, custom — same inputs, same outputs.
-7. **Human-compatible.** The filesystem is the interface. Humans can author session notes, review proposed diffs, and approve changes using their own tools. The `[DOMAIN-TOOLKIT]` marker is visible in CC's conversation view.
-8. **Conservative with decisions.** DECISIONS.md is append-only. The distiller adds but never removes or modifies. Revisit conditions are flagged, not acted upon.
-9. **Provenance preserved.** Three perspectives (human, agent, distiller) coexist with clear provenance. Canonical files trace back to source sessions. The raw JSONL is always available for audit or re-derivation.
+1. **Humans author intent; agents are custodial.** The governance model. The human originates purpose and direction. The agent maintains, executes, and preserves. The distiller serves this model — it ensures human intent survives into synthesized form. Failure to capture human decisions is a failure mode.
+2. **Session JSONL is canonical.** Session JSONL files are the durable corpus — written continuously by CC, never modified by domain-toolkit except to append `[DOMAIN-TOOLKIT]` markers. Everything else is derived.
+3. **Synthesis, not purification.** The distiller produces a dialectical synthesis of human intent and agent execution — not a distilled essence. The output is a new thing produced from the tension between two perspectives, validated by the human.
+4. **Second-order observation, not objectivity.** The distiller is differently positioned — it reads cold artifacts from outside the session. It has its own blind spots. Its value comes from temporal separation, not from a claim to neutrality.
+5. **Staged, not direct.** Agents never write to synthesized files. The distiller writes with an approval gate (frontmatter `status: proposed`). This enforces custodial agency.
+6. **Standalone.** The distiller is not part of the agent or the orchestrator. It's a separate process that reads and writes to the filesystem.
+7. **Strategy is configuration.** The interface contract doesn't change when you swap strategies. Same inputs, same outputs. The orchestration framework supports experimentation.
+8. **Human-compatible.** The filesystem is the interface. Humans can author session notes, review proposed diffs, and approve changes using their own tools.
+9. **Conservative with decisions.** DECISIONS.md is append-only. The distiller adds but never removes or modifies. Revisit conditions are flagged, not acted upon. Decisions are authored intent — they belong to the human.
+10. **Corpus is permanent; distiller is replaceable.** Sessions are the durable asset. Synthesized files can always be re-derived. When the distiller improves, the corpus gets re-synthesized. This is by design — the lens improves independently of what it observes.
+
+## Known Limitations
+
+Acknowledged gaps and risks. Not blockers for Stage 1, but constraints the design must eventually address.
+
+### MEMORY.md growth (no compaction strategy)
+
+MEMORY.md grows monotonically — new knowledge is added, nothing is removed. Over time it will consume significant context budget on every session start and every distillation call, and become noisy as outdated knowledge accumulates alongside current knowledge. The spec needs a compaction or pruning mechanism. Options include tiered memory (hot/warm/cold), periodic re-synthesis of MEMORY.md itself, explicit archive sections loaded selectively, or size-based triggers that flag when MEMORY.md exceeds a threshold. This is the most important scaling gap.
+
+### Auto-compaction degrades canonicality
+
+The spec claims session JSONL is the canonical, verbatim record. However, Claude Code auto-compacts conversations when they approach context limits (~167K tokens), replacing earlier messages with summaries. The JSONL therefore contains compacted summaries for long sessions, not the original messages. Information lost to compaction is unrecoverable. The canonical record has gaps the spec must acknowledge. Mitigation: the stager should run frequently (cron every 15 minutes) to capture pre-compaction transcript state, providing a secondary canonical record that preserves content the JSONL may later compact. This trades strict single-source-of-truth for practical information preservation.
+
+### Review fatigue
+
+If the distiller produces frequent or verbose proposals, the human will rubber-stamp them. The review gate becomes theater rather than governance. This is the most likely failure mode at scale and has no current mitigation. Possible countermeasures: diff-style output showing only changes, trust calibration over time (auto-approve low-confidence-change proposals), or summary-first presentation where the human reads a one-paragraph summary before deciding whether to review the full proposal.
+
+### Re-synthesis cost at scale
+
+"Re-synthesize everything when the distiller improves" is practical for small corpora (< 100 sessions, ~$50-100 at Opus). At 1,000+ sessions it becomes expensive (~$500-1,000) and slow. A more practical approach: selective re-synthesis of sessions that produced decisions or significant memory entries, or re-synthesize only the most recent N sessions and treat older synthesis as stable.
+
+### No quality evaluation framework
+
+There is no benchmark or metric for "did the distiller capture the human's intent correctly?" Without this, improving the distiller prompt is guesswork. Future work should establish evaluation criteria — factual coverage, decision capture rate, alignment with human intent — and test distiller outputs against them.
+
+### Distiller bias
+
+The spec acknowledges the distiller "has its own blind spots" but provides no mechanism for detecting or correcting systematic bias. If the distiller consistently underweights certain types of human intent (e.g. aesthetic preferences vs. technical decisions), this compounds across sessions. Adversarial strategies (Stage 2) and ensemble distillers are potential mitigations, but no detection mechanism exists.
+
+## References
+
+- Abdali et al. (2025) — "Self-reflecting LLM: A Hegelian Dialectical Approach" — thesis/antithesis/synthesis prompting
+- Arcuschin et al. (2025) — "CoT Not Always Faithful" — LLMs produce contradictory post-hoc rationalizations
+- Bai et al. (2022) — "Constitutional AI" (Anthropic) — LLM self-critique with fixed constitutional rules
+- Barez et al. (2025) — "CoT Is Not Explainability" (Oxford) — chain-of-thought can be unfaithful
+- Du et al. (2023) — "Improving Factuality and Reasoning through Multiagent Debate"
+- Fröhlich et al. (2024) — "ArgLLM" — computational argumentation (dialectical logic) guiding LLM output
+- He et al. (2026) — "Reasoning Beyond Chain-of-Thought" — latent reasoning modes independent of explicit CoT
+- Latimer et al. (2024) — "Hindsight" — four-tier agentic memory with retain/recall/reflect operations
+- Nygard (2011) — Architecture Decision Records — append-only decision logging with status lifecycle
+- Park et al. (2023) — "Generative Agents" — reflection layer over stored experiences
+- Xu et al. (2023) — "Recursive Summarizing for Long Dialogue" — iterative memory-augmented conversation
+- Xu et al. (2025) — "A-Mem" (NeurIPS) — Zettelkasten-style self-organizing agentic memory

@@ -1,6 +1,7 @@
 ---
 name: distill-domain
 description: Run the domain-toolkit distillation pipeline for a single domain by turning session artifacts into proposed MEMORY.md and DECISIONS.md updates.
+user-invocable: false
 context: fork
 model: opus
 argument-hint: "[domain-path] [--re-distill] [--strategy simple|careful|adversarial]"
@@ -8,7 +9,7 @@ argument-hint: "[domain-path] [--re-distill] [--strategy simple|careful|adversar
 
 You are implementing the **distiller** described in `distiller-spec.md` as a Claude Code skill for a single domain.
 
-**You run in an isolated context.** You have no access to the conversation that produced the session artifacts you are processing. This is by design — the distiller must be objective. Your only inputs are the files on disk described below. Do not assume, infer, or hallucinate any session context beyond what is written in the checkpoint and draft files.
+**You run in an isolated context.** You have no access to the conversation that produced the session artifacts you are processing. This is by design — the distiller must be objective. Your only inputs are the files on disk described below. Do not assume, infer, or hallucinate any session context beyond what is written in the session and draft files.
 
 This skill:
 
@@ -46,7 +47,7 @@ Under the domain root, expect:
 - `.context/DECISIONS.md` – current canonical decision log.
 - `.claude/agent.md` – agent config (read `memory_review` setting).
 - `.context/sessions/` – session artifacts with YAML frontmatter:
-  - `*.md` checkpoint files with `status` frontmatter (`active`, `closed`, `distilled`).
+  - `*.md` session files with `status` frontmatter (`active`, `closed`, `distilled`).
   - `*.draft.md` memory drafts (the agent's subjective view).
   - `*.log` raw transcripts (rarely needed).
 
@@ -68,12 +69,12 @@ Follow the simple strategy from `distiller-spec.md`:
 1. Read existing canonical state:
    - `MEMORY.md`
    - `DECISIONS.md`
-2. Read all `closed` session checkpoint files, chronologically.
+2. Read all `closed` session files, chronologically.
 3. Read any companion `.draft.md` files for those sessions.
 4. Reason through:
 
    - **Existing Canonical State** — current memory and decisions.
-   - **Session Artifacts** — checkpoints and drafts since last distillation.
+   - **Session Artifacts** — session notes and drafts since last distillation.
    - **Agent's subjective view** — compare the agent's memory drafts against your own extraction. Note agreement and disagreement.
    - **Instructions**:
      - Identify new knowledge, context, and preferences that should persist.
@@ -141,4 +142,4 @@ At the end of the skill run, summarize in chat:
 - Whether any conflicts were detected.
 - Whether any disagreements were found between agent drafts and distiller extraction.
 
-If you are unsure about any semantics, consult `distiller-spec.md` in the repo root and follow it as the source-of-truth.
+If you are unsure about any semantics, consult `docs/specs/distiller-spec.md` and follow it as the source-of-truth.

@@ -17,7 +17,7 @@ A **domain** is a folder representing a concern — narrow or broad, ephemeral o
     DECISIONS.md        # Structured decision log (append-only)
     STATE.md            # Current status snapshot (volatile, frequently updated)
     sessions/
-      <timestamp>.md        # Structured session checkpoints (frontmatter-tracked lifecycle)
+      <timestamp>.md        # Structured session notes (frontmatter-tracked lifecycle)
       <timestamp>.draft.md  # Memory draft (agent's proposed memories, written at session close)
       <timestamp>.log       # Raw session transcript (optional)
   README.md             # Canonical description of what this domain is
@@ -40,7 +40,7 @@ Agent configuration and context map. Tells a subagent:
 
 - **How to show up**: persona, tone, model tier preference
 - **What to read**: pointers to MEMORY.md, DECISIONS.md, and any other context files relevant to this domain
-- **Behavioral settings**: distillation strategy (`memory_review: auto | flag | manual`), checkpoint conventions, any domain-specific constraints
+- **Behavioral settings**: distillation strategy (`memory_review: auto | flag | manual`), any domain-specific constraints
 
 This is the **start file** — the first thing an agent reads when entering a domain. Lives at `.claude/agent.md` (tracked in git, not in `.context/`). Doubles as the domain identity signal — the SessionStart hook checks for `.claude/agent.md` to detect whether a directory is a managed domain.
 
@@ -102,8 +102,8 @@ created: 2026-03-10T14:37:22
 
 | Status | Meaning | Set by |
 |--------|---------|--------|
-| `active` | Session is in progress. More checkpoints may be added. | Agent (on first checkpoint) |
-| `closed` | Session is complete. Ready for distillation. | Agent (on `/checkpoint --close` or opportunistically) |
+| `active` | Session is in progress. | Agent (on session start) |
+| `closed` | Session is complete. Ready for distillation. | Agent (opportunistically at session end) |
 | `distilled` | Distiller has processed this session. | Distiller (after successful run) |
 
 The agent may **opportunistically close** a session when it senses work is winding down. If the session continues, the agent resets status to `active`. This is cheap — just a frontmatter edit.
@@ -114,24 +114,22 @@ Because session files are permanent, re-distillation is always possible. Reset a
 
 | Actor | Session files | Canonical files |
 |-------|--------------|-----------------|
-| **Working agent** | Writes (append-only via checkpoint). Never reads back. | Reads on entry. Never writes. |
+| **Working agent** | Writes (append-only). Never reads back. | Reads on entry. Never writes. |
 | **Distiller** | Reads (to extract knowledge). Never writes (except frontmatter status). | Writes (proposed or committed updates). |
 | **Human** | Can author directly. | Approves distiller proposals. Can edit directly. |
 
-### `<timestamp>.md` — Structured Checkpoints
+### `<timestamp>.md` — Session Notes
 
-Written by the agent during a session. Each checkpoint captures:
+Written by the agent during a session. Each entry captures:
 
-- What happened since last checkpoint
+- What happened since the last entry
 - Decisions made
 - Open questions
 - Current state of thinking
 
-Checkpoints are triggered by `/checkpoint` command (human-initiated) or suggested by the agent and confirmed by the human. The agent never checkpoints without human consent.
-
 ### `<timestamp>.draft.md` — Memory Draft
 
-The agent's proposed memories for the session, written at session close (`/checkpoint --close`). This is what the agent *thinks* should be remembered — the subjective view. The distiller uses it as a secondary signal, comparing the agent's judgment against its own objective extraction from checkpoints.
+The agent's proposed memories for the session, written at session close. This is what the agent *thinks* should be remembered — the subjective view. The distiller uses it as a secondary signal, comparing the agent's judgment against its own objective extraction from session notes.
 
 ### `<timestamp>.log` — Raw Transcript
 
@@ -187,9 +185,7 @@ The domain is born version-controlled, context-aware, and ready for interactive 
 
 1. Work proceeds interactively
 2. Agent surfaces files of concern via `code <file>` — they open as tabs in the viewport
-3. `/checkpoint` writes structured notes to session file
-4. Agent may suggest checkpoints; human confirms
-5. `/checkpoint --close` signals session end, triggers memory draft
+3. Session artifacts accumulate in `.context/sessions/`
 
 ### Post-Session
 

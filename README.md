@@ -6,7 +6,7 @@ Infrastructure for durable human-agent collaboration. Not per-session, not per-t
 
 A **domain** is any concern you manage — a project, a client, a system, a body of research. Each domain carries a **domain kit**: the combination of all domain-specific resources that a model is given access to — prompts, personas, context, state, memories, tools, skills — plus a session-distillation loop that gives agents reasoning continuity and humans a feedback gate.
 
-The domain kit is the basic unit of governance in the system. It is not a prompt. It is a complete ontological space within which an agent reasons. See `variety-agent-design.md` for the cybernetics-grounded theoretical foundation (Ashby, Beer, VSM).
+The domain kit is the basic unit of governance in the system. It is not a prompt. It is a complete ontological space within which an agent reasons. Grounded in cybernetics (Ashby's Law of Requisite Variety, Beer's Viable System Model).
 
 ## Why
 
@@ -28,13 +28,11 @@ This system makes the domain kit the unit of collaboration. The agent reads the 
 
 ## Commands
 
-Four concerns, four commands:
+Three concerns, three commands:
 
 **`touch-domain`** — kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Operates from the outside, objectively. Modes: default (smart touch), `--full` (profile regeneration), `--new` (new domain bootstrapping). Modifiers: `--no-touchy` (read-only diagnostic), `-y` (suppress prompts).
 
 **`open-domain`** — viewport launch. Opens a managed domain for interactive work. `open-domain cashflow --cursor` opens the domain in Cursor/VS Code. The transition from objective observation to subjective immersion.
-
-**`checkpoint`** — session capture. Structured snapshots during interactive work, human-initiated. `checkpoint --close` signals session end and triggers memory draft.
 
 **`distill`** — memory processing. Transforms session artifacts into proposed updates to canonical files. Runs in isolated context — no access to the working session's conversation history. This is a debiasing mechanism: the distiller reads cold artifacts off disk without completion bias or sunk-cost reasoning.
 
@@ -44,7 +42,7 @@ You open a terminal. You're in the orchestrator — Claude Code running in the s
 
 You pick a domain. `open-domain cashflow --cursor`. A new VS Code window appears. PROFILE.md, MEMORY.md, DECISIONS.md open as tabs. Claude Code launches in the extension panel, loads context via hooks, and briefs you: "Last session was March 3rd. STATE shows the reconciliation module is blocked on API access. DECISIONS has a revisit condition that appears met — the vendor shipped their v2 API last week. Three unprocessed sessions pending distillation."
 
-You're in discourse. You work. The agent surfaces files as tabs when they become relevant. You hit decision points — the agent captures them. When you're done, you `checkpoint --close`. The session artifacts land in `.context/sessions/`.
+You're in discourse. You work. The agent surfaces files as tabs when they become relevant. You hit decision points — the agent captures them. Session artifacts accumulate in `.context/sessions/`.
 
 Back in the orchestrator, you kick off `distill cashflow`. A headless, isolated agent reads the session artifacts against the canonical files and proposes updates. You review the diff. Approve. MEMORY and DECISIONS grow. The domain is smarter for next time.
 
@@ -55,7 +53,6 @@ Or you start something new. `touch-domain --new ~/domains/new-client`. "This pat
 - `orchestrator-architecture.md` — commands, viewport, runtime, hooks, implementation path
 - `domain-convention.md` — domain layout, file roles, git convention, lifecycle
 - `distiller-spec.md` — distillation pipeline, isolation requirement, strategies, review gate
-- `variety-agent-design.md` — cybernetics-grounded theoretical foundation (Ashby, Beer, VSM, domain kit as viable system)
 
 ## Current state
 

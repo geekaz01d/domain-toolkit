@@ -21,12 +21,10 @@ Key specs (consult when making changes):
 
 Skills (in `.claude/skills/`):
 - `touch-domain` — universal domain kit management (structural validation, git precheck, profile regen, bootstrapping)
-- `checkpoint` — session checkpoint capture
 - `distill-domain` — distillation pipeline for a single domain
 - `sweep` — cross-domain attention sweep coordinator (future)
 - `domain-convention` — reference for domain layout
 
 ## Behavioral Settings
 - `memory_review: manual` — proposed memory changes require human review
-- Checkpoint on: significant decisions, design changes, spec updates
 - Never auto-commit to MEMORY.md or DECISIONS.md without distillation pipeline

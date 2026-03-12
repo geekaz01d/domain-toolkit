@@ -31,7 +31,7 @@ When this skill is active and the user asks how to structure or maintain a domai
    - The **distiller** is the only thing that proposes updates to `MEMORY.md` / `DECISIONS.md`, via `.proposed` files.
 4. **Clarify the read / write flow for entering and leaving a domain:**
    - **Read when entering:** `PROFILE.md → MEMORY.md → DECISIONS.md → STATE.md → current chat/session context`.
-   - **Write when leaving:** chat → checkpoints in `sessions/` → distiller → updated `MEMORY.md` / `DECISIONS.md` → regenerated `PROFILE.md` on next full touch.
+   - **Write when leaving:** chat → session artifacts in `sessions/` → distiller → updated `MEMORY.md` / `DECISIONS.md` → regenerated `PROFILE.md` on next full touch.
 5. When asked for concrete scaffolding:
    - Propose minimal, spec-compliant starter contents for missing files, but always:
      - Make it clear which parts are **sample scaffolding** vs. canonical content that should be human-edited.
