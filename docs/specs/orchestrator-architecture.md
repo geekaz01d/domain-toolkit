@@ -1,5 +1,18 @@
 # Domain Kit Architecture
 
+> **Partially superseded (2026-03-18).** The following sections of this document have been replaced by newer specs:
+>
+> | Section | Superseded by |
+> |---------|---------------|
+> | Commands (touch-domain, open-domain, /map, sweep) | `command-taxonomy.md` (7 commands) |
+> | Git Conventions | `git-operations.md` |
+> | Domain Registry format | `registry-spec.md` (REGISTRY.yaml) |
+> | Domain Viewport / workspace file | `set-assembly-spec.md`, `storage-and-services.md` |
+> | agent.md references | `file-convention.md` (domain.yaml + persona.md) |
+> | "The orchestrator runs as local user" | `storage-and-services.md` (containerised viewports) |
+>
+> Sections that remain current: Overview (domain kit concept), Design Principles, Concurrency, Persistence and Resumability, Implementation Path (as historical roadmap).
+
 ## Overview
 
 This system provides infrastructure for durable human-agent collaboration across a constellation of **domains** — folders representing concerns of varying scope and lifespan. Each domain carries a **domain kit**: prompts, personas, context, state, memories, and a session-distillation loop that gives agents reasoning continuity and humans a feedback gate.

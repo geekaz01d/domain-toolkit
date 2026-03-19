@@ -1,8 +1,16 @@
 #!/bin/bash
-# Firehose SessionStart hook
+# Domain-toolkit SessionStart hook
 # Two jobs:
-#   1. If domain (.claude/agent.md exists): inject context files as opening context
+#   1. If managed domain (.claude/domain-toolkit/domain.yaml exists): inject context files
 #   2. Always: record session mapping for transcript retrieval
+#
+# Load order (per file-convention.md):
+#   1. Global governance (~/AGENTS.md, ~/.claude/CLAUDE.md) — handled by CC natively
+#   2. Domain governance (CLAUDE.md, AGENTS.md) — handled by CC natively
+#   3. Persona (closest persona.md to launch context)
+#   4. Context files (PROFILE → MEMORY → DECISIONS → STATE)
+#
+# This hook handles steps 3-4. Steps 1-2 are CC's native behaviour.
 #
 # Install: add to ~/.claude/settings.json hooks.SessionStart (see hooks/README.md)
 
@@ -22,16 +30,20 @@ if [ -n "$SESSION_ID" ] && [ -d ".context/sessions" ]; then
     >> ".context/sessions/session-index.jsonl"
 fi
 
-# --- Domain context injection (only for domains) ---
-AGENT_MD=".claude/agent.md"
+# --- Domain context injection (only for managed domains) ---
+DOMAIN_YAML=".claude/domain-toolkit/domain.yaml"
 
-if [ ! -f "$AGENT_MD" ]; then
+if [ ! -f "$DOMAIN_YAML" ]; then
   exit 0
 fi
 
-echo "=== Domain Agent Config ==="
-cat "$AGENT_MD"
-echo ""
+# Inject persona (closest persona.md to launch context)
+# Check domain root first, then fall back to skill-specific or global
+if [ -f "persona.md" ]; then
+  echo "=== Persona ==="
+  cat "persona.md"
+  echo ""
+fi
 
 # Follow the context map: PROFILE → MEMORY → DECISIONS → STATE
 for file in .context/PROFILE.md .context/MEMORY.md .context/DECISIONS.md .context/STATE.md; do

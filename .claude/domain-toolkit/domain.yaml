@@ -1,0 +1,26 @@
+# .claude/domain-toolkit/domain.yaml
+# Domain manifest — machine-readable, tracked in git.
+# See docs/specs/domain-yaml-schema.md for schema reference.
+
+# ── User-declared (preserved across updates) ──────────────────────
+name: domain-toolkit
+repo: domain-toolkit
+type: subject
+
+description: >
+  Meta-repo — orchestrator specs, skills, and conventions for managing
+  durable human-agent collaboration across multiple domains.
+
+sets:
+  - meta
+
+canonical_source: fluffy.geekazoid.net:/mnt/user/git/domain-toolkit.git
+default_branch: main
+
+remotes:
+  fluffy: fluffy.geekazoid.net:/mnt/user/git/domain-toolkit.git
+  github: git@github.com:geekaz01d/domain-toolkit.git
+
+# ── Derived (overwritten by touch-domain / add-domain --update) ───
+kit_health: yes
+last_touched: 2026-03-18

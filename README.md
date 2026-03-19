@@ -23,18 +23,31 @@ This system makes the domain kit the unit of collaboration. The agent reads the 
 - **Session capture from inception.** Domain creation is a session. The onboarding conversation that defines a domain is itself the first session artifact.
 - **Housekeeping and git awareness.** `touch-domain` is the universal health check. Concerns are surfaced, not silently fixed.
 - **A viewport for interactive work.** `open-domain --cursor` opens a domain in its own VS Code window with context files visible and Claude Code at the center.
+- **Sets and worktrees.** Group related domains, assemble them as git worktrees, open a set as a unified workspace.
 - **A distillation loop for reasoning continuity.** Session artifacts are processed by an isolated distiller — a separate agent providing objective review. Knowledge compounds across sessions.
 - **Claude Code superpowers.** Orchestration of subagents, model selection per domain, objective and adversarial review via isolated headless invocations, hooks for deterministic automation.
 
 ## Commands
 
-Three concerns, three commands:
+| Command | Concern |
+|---------|---------|
+| **`touch-domain`** | Kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Operates from the outside, objectively. |
+| **`open-domain`** | Viewport launch. Opens a domain or set for interactive work. Cursor, terminal, or containerised viewport. |
+| **`add-domain`** | Registry management. Scan, register, scaffold new domains. Builds the derived REGISTRY.yaml from domain.yaml files on disk. |
+| **`group-domain`** | Set management. Organise domains into named groups via domain.yaml `sets` field. |
+| **`rename-domain`** | Domain identity. Rename safely across domain.yaml, registry, git remotes, set memberships. |
+| **`distill-domain`** | Memory processing. Transforms session artifacts into proposed updates to canonical files. Runs in isolated context — no access to the working session's conversation history. Debiased by design. |
+| **`overview`** | Capacity-aware briefing. Scans the registry, filters through the personal domain profile, produces a prioritised view of what deserves attention. |
 
-**`touch-domain`** — kit management. Structural health, git state, profiling, scaffolding, bootstrapping. Operates from the outside, objectively. Modes: default (smart touch), `--full` (profile regeneration), `--new` (new domain bootstrapping). Modifiers: `--no-touchy` (read-only diagnostic), `-y` (suppress prompts).
+## Domain structure
 
-**`open-domain`** — viewport launch. Opens a managed domain for interactive work. `open-domain cashflow --cursor` opens the domain in Cursor/VS Code. The transition from objective observation to subjective immersion.
+Each managed domain contains:
 
-**`distill`** — memory processing. Transforms session artifacts into proposed updates to canonical files. Runs in isolated context — no access to the working session's conversation history. This is a debiasing mechanism: the distiller reads cold artifacts off disk without completion bias or sunk-cost reasoning.
+- `README.md` — canonical description of what this domain is
+- `.claude/domain-toolkit/domain.yaml` — machine-readable manifest and detection signal (tracked in git)
+- `persona.md` — agent identity, context map, behavioural settings (tracked in git)
+- `CLAUDE.md` — domain-specific governance (tracked in git)
+- `.context/` — knowledge layer: `PROFILE.md`, `MEMORY.md`, `DECISIONS.md`, `STATE.md`, `sessions/` (gitignored, synced via Syncthing)
 
 ## User story
 
@@ -44,15 +57,26 @@ You pick a domain. `open-domain cashflow --cursor`. A new VS Code window appears
 
 You're in discourse. You work. The agent surfaces files as tabs when they become relevant. You hit decision points — the agent captures them. Session artifacts accumulate in `.context/sessions/`.
 
-Back in the orchestrator, you kick off `distill cashflow`. A headless, isolated agent reads the session artifacts against the canonical files and proposes updates. You review the diff. Approve. MEMORY and DECISIONS grow. The domain is smarter for next time.
+Back in the orchestrator, you kick off `distill-domain cashflow`. A headless, isolated agent reads the session artifacts against the canonical files and proposes updates. You review the diff. Approve. MEMORY and DECISIONS grow. The domain is smarter for next time.
 
 Or you start something new. `touch-domain --new ~/domains/new-client`. "This path doesn't exist. Starting new domain onboarding." An interactive session begins — you define the domain, its scope, the agent persona, initial concerns. That conversation is captured as the first session. Git initializes. The bare repo appears on your server. The workspace file generates. The viewport opens. The domain is born version-controlled, context-aware, and ready.
 
 ## Design documents
 
-- `orchestrator-architecture.md` — commands, viewport, runtime, hooks, implementation path
-- `domain-convention.md` — domain layout, file roles, git convention, lifecycle
-- `distiller-spec.md` — distillation pipeline, isolation requirement, strategies, review gate
+See `docs/specs/` for the full specification set:
+
+- `command-taxonomy.md` — commands, concerns, relationships
+- `file-convention.md` — file hierarchy, load order, persona placement
+- `domain-yaml-schema.md` — domain.yaml schema
+- `domain-model-semantics.md` — domain types, authorship vs operation, overview function
+- `registry-spec.md` — derived registry, scan paths, sets index
+- `git-operations.md` — three-tier disposability, sync model, custodial checklist
+- `set-assembly-spec.md` — worktree assembly, set roots, Docker integration
+- `storage-and-services.md` — storage topology, containerised viewports, Syncthing overlay
+- `distiller-spec.md` — distillation pipeline, strategies, review gate
+- `sandbox-test-data.md` — demo sandbox specification
+- `orchestrator-architecture.md` — original architecture (partially superseded)
+- `domain-convention.md` — original convention (partially superseded)
 
 ## Current state
 

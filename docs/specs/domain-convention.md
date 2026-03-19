@@ -1,5 +1,16 @@
 # Domain Convention Spec
 
+> **Partially superseded (2026-03-18).** The following sections of this document have been replaced by newer specs:
+>
+> | Section | Superseded by |
+> |---------|---------------|
+> | Directory structure (agent.md) | `file-convention.md` (domain.yaml + persona.md) |
+> | agent.md file role | `file-convention.md`, `domain-yaml-schema.md` |
+> | Git Convention | `git-operations.md` |
+> | Session Entry / Lifecycle | `file-convention.md` (load order), `command-taxonomy.md` |
+>
+> Sections that remain current: Session Files (lifecycle, access boundaries, frontmatter convention), MEMORY.md and DECISIONS.md structure and semantics.
+
 ## Overview
 
 A **domain** is a folder representing a concern — narrow or broad, ephemeral or long-running. Every domain that participates in the orchestration system follows a shared convention for context files, enabling consistent agent bootstrapping, memory accumulation, and session management.
