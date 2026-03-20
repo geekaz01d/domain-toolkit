@@ -1,5 +1,20 @@
 # Domain Kit Architecture
 
+> **Partially superseded (2026-03-18, updated 2026-03-19).** The following sections are superseded by newer, more authoritative specs:
+>
+> | Section | Authoritative spec |
+> |---------|-------------------|
+> | Commands (touch-domain, open-domain, /map, sweep) | `command-taxonomy.md` (7 commands) |
+> | Git Conventions | `git-operations.md` |
+> | Domain Registry format | `registry-spec.md` (REGISTRY.yaml) |
+> | Domain Viewport / workspace file | `set-assembly-spec.md`, `storage-and-services.md` |
+> | File convention (detection, persona, governance) | `file-convention.md` (domain.yaml + persona.md) |
+> | "The orchestrator runs as local user" | `storage-and-services.md` (containerised viewports) |
+>
+> These sections have been updated to reflect current conventions (domain.yaml, persona.md) but the authoritative specs above should be preferred.
+>
+> Sections that remain current and authoritative here: Overview (domain kit concept), Design Principles, Concurrency, Persistence and Resumability, Implementation Path (as historical roadmap).
+
 ## Overview
 
 This system provides infrastructure for durable human-agent collaboration across a constellation of **domains** — folders representing concerns of varying scope and lifespan. Each domain carries a **domain kit**: prompts, personas, context, state, memories, and a session-distillation loop that gives agents reasoning continuity and humans a feedback gate.
@@ -41,8 +56,10 @@ The universal entry point for any domain interaction. Modal — determines what'
 - In all cases, checks git status if the domain is a git repo (uncommitted changes, unpushed commits, remote configuration, worktree state)
 
 **What the default touch validates:**
-- `.context/` directory exists with required files: agent.md, STATE.md, MEMORY.md, DECISIONS.md
-- Pointer integrity in agent.md (do referenced files exist?)
+- `.context/` directory exists with required files: STATE.md, MEMORY.md, DECISIONS.md, PROFILE.md
+- `.claude/domain-toolkit/domain.yaml` exists (detection signal)
+- `persona.md` exists at domain root (agent identity)
+- Pointer integrity in persona.md (do referenced files exist?)
 - Git status: clean working tree, remotes configured per convention, no detached HEAD or mid-rebase state
 - `domain.code-workspace` exists and is current
 - Reports structural health including git concerns
@@ -56,7 +73,7 @@ The universal entry point for any domain interaction. Modal — determines what'
 
 **`touch-domain --full`** — Full profile regeneration.
 - Everything default touch does, plus:
-- Reads README.md, STATE.md, agent.md, MEMORY.md, DECISIONS.md
+- Reads README.md, STATE.md, domain.yaml, persona.md, MEMORY.md, DECISIONS.md
 - Scans the domain's repo/folder contents
 - Generates or updates PROFILE.md
 - Generates or updates `domain.code-workspace`
@@ -68,7 +85,7 @@ The universal entry point for any domain interaction. Modal — determines what'
 - Creates the domain directory if it doesn't exist
 - Kicks off an interactive onboarding session: what is this domain, scope, agent persona, initial concerns
 - That onboarding conversation is captured as the first session in `.context/sessions/`
-- From the session, creates: directory structure, README.md, agent.md, `.context/` scaffolding, initial STATE.md
+- From the session, creates: directory structure, README.md, `.claude/domain-toolkit/domain.yaml`, `persona.md`, `.context/` scaffolding, initial STATE.md
 - Initializes git repo per global conventions (see Git Conventions below)
 - Runs `--full` at the end to generate PROFILE.md and `domain.code-workspace`
 - Opens the domain viewport: `code --new-window domain.code-workspace`
@@ -97,13 +114,13 @@ touch-domain -y <path>           # suppress prompts (auto-confirm safe operation
 
 Domains that are git repos follow a standard remote configuration, defined globally with per-domain overrides.
 
-**Global defaults** (configured in `~/.claude/domain-toolkit/config.md` or similar):
-- **Origin**: bare repo on a configured primary server (host, path pattern defined in local config)
+**Global defaults** (in the meta-domain's `domain.yaml`):
+- **Origin**: bare repo created from `default_remote_pattern` (e.g., `root@server:/mnt/git/{repo}.git`)
 - **Mirror**: optional secondary remote (e.g., GitHub private repo, per-domain opt-in)
 - **Branch conventions**: TBD per domain needs
 
-**Per-domain overrides** in `agent.md`:
-- Domains can specify non-standard remotes, additional mirrors, or explicit exemption from the bare-repo requirement (`git_remote: none` or `git_remote: local-only`)
+**Per-domain overrides** in `domain.yaml`:
+- Domains declare their remotes via the `remotes` and `canonical_source` fields. `touch-domain` verifies actual git remotes against these declarations and flags discrepancies.
 
 **Git state precheck** — runs before any touch logic. The state is always surfaced to the user:
 
@@ -113,8 +130,8 @@ Domains that are git repos follow a standard remote configuration, defined globa
 | **Behind** | Remote is ahead of local | Prompt: "Canonical version is on the server. Work on that or pull here?" No writes until resolved. |
 | **Ahead** | Local has unpushed commits | Proceed with touch, surface concern. Prompt to push. |
 | **Clean** | In sync with remote | Proceed normally. |
-| **No remote** | Repo exists but no remote configured | Proceed with touch. Prompt to create bare remote, unless exempted in agent.md. If exempted, note it informationally. |
-| **Not a repo** | No `.git/` directory | Proceed with touch. Prompt to initialize, unless exempted. |
+| **No remote** | Repo exists but no remote configured | Proceed with touch. Prompt to create bare remote per `default_remote_pattern` in the meta-domain's `domain.yaml`. |
+| **Not a repo** | No `.git/` directory | Proceed with touch. Prompt to initialize. |
 
 States **Diverged** and **Behind** block writes — touching would create conflicts or be immediately stale. All other states proceed but surface concerns.
 
@@ -141,7 +158,7 @@ Launch a domain viewport for interactive work. This is the transition from objec
 
 **What it does:**
 - Opens the domain's `domain.code-workspace` in the specified viewport
-- Context files appear as tabs, Claude Code launches with the domain's agent prompt
+- Context files appear as tabs, Claude Code launches with the domain's persona
 - The agent runs touch, briefs the human on domain state and concerns
 - The human is in discourse — the session is live
 
@@ -240,7 +257,7 @@ Each domain has a `domain.code-workspace` file at its root, generated by `touch-
       {
         "label": "Start Domain Session",
         "type": "shell",
-        "command": "claude --append-system-prompt-file .claude/agent.md 'Run /touch-domain --full and brief me'",
+        "command": "claude --append-system-prompt-file persona.md 'Run /touch-domain --full and brief me'",
         "presentation": { "reveal": "always", "panel": "new" },
         "runOptions": { "runOn": "folderOpen" }
       }
@@ -261,8 +278,8 @@ VS Code opens a new window. Context files appear as tabs. Claude Code launches i
 
 ## Subagent Lifecycle
 
-1. **Spawn**: `open-domain <domain> --cursor` opens the domain viewport, which launches Claude Code with `--append-system-prompt-file .claude/agent.md`
-2. **Bootstrap**: Claude Code's `SessionStart` hook reads agent.md, loads context per the context map. Context files auto-open as tabs via workspace `folderOpen` task.
+1. **Spawn**: `open-domain <domain> --cursor` opens the domain viewport, which launches Claude Code with `--append-system-prompt-file persona.md`
+2. **Bootstrap**: Claude Code's `SessionStart` hook detects `domain.yaml`, loads persona.md and context files per the context map. Context files auto-open as tabs via workspace `folderOpen` task.
 3. **Execute**: Interactive session — the agent performs its task, surfaces files of concern via `code <file>`
 4. **Close**: Session ends, VS Code window can be closed
 5. **Distill**: Headless `claude -p` processes session artifacts in isolated context (separate invocation, no session history)
@@ -353,7 +370,7 @@ The OS window list / taskbar serves as the sweep history. Completed domains stay
 
 Claude Code hooks provide deterministic automation at session lifecycle points:
 
-**`SessionStart` hook**: fires when Claude Code starts a session. Reads `.context/PROFILE.md → MEMORY.md → DECISIONS.md → STATE.md` and injects the content as opening context. The read-on-entry flow becomes automatic.
+**`SessionStart` hook**: fires when Claude Code starts a session. Detects `domain.yaml`, then reads `persona.md → PROFILE.md → MEMORY.md → DECISIONS.md → STATE.md` and injects the content as opening context. The read-on-entry flow becomes automatic and deterministic.
 
 **`Stop` hook**: fires when the agent finishes a response. Can be used to write structured session summaries to `.context/sessions/`.
 

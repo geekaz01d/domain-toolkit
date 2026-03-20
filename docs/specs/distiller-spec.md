@@ -140,7 +140,7 @@ The synthesis process becomes modular. We do not know what the best technique wi
 
 **What Stage 2 delivers:**
 - Pluggable strategies (single-model, multi-model, adversarial, custom)
-- Strategy selection per domain via `agent.md`
+- Strategy selection per domain via `persona.md`
 - Multi-pass synthesis with human-in-the-loop option
 - Conflict detection and reporting (`DISTILL-CONFLICTS.md`)
 - Re-synthesis capability (reprocess corpus with improved prompt or model)
@@ -274,15 +274,15 @@ source_sessions:
 ---
 ```
 
-The review mode (from `agent.md`) determines what happens:
+The review mode (from `persona.md`) determines what happens:
 
 | Mode | Behavior | Configured In |
 |------|----------|---------------|
-| `manual` | Synthesized files written with `status: proposed`. Human reviews and approves (removes/updates frontmatter). | agent.md |
-| `flag` | Non-conflicting changes committed directly. Conflicts written as `status: proposed`. | agent.md |
-| `auto` | All changes committed directly. Conflicts logged but resolved last-write-wins. | agent.md |
+| `manual` | Synthesized files written with `status: proposed`. Human reviews and approves (removes/updates frontmatter). | persona.md |
+| `flag` | Non-conflicting changes committed directly. Conflicts written as `status: proposed`. | persona.md |
+| `auto` | All changes committed directly. Conflicts logged but resolved last-write-wins. | persona.md |
 
-Default is `manual`. Per-domain override via `memory_review` setting in agent.md.
+Default is `manual`. Per-domain override via `memory_review` setting in persona.md.
 
 Approval is flipping `status: proposed` to `status: approved` (or removing the frontmatter entirely). The human can also edit the content during review.
 
@@ -300,7 +300,7 @@ The signal is: **staged transcripts exist whose source JSONLs have content after
 
 ## Synthesis Strategies (Stage 2)
 
-The distiller's internal processing is a **black box with a pluggable strategy**. The interface contract stays the same regardless of strategy. Strategies are specified in agent.md or as CLI arguments.
+The distiller's internal processing is a **black box with a pluggable strategy**. The interface contract stays the same regardless of strategy. Strategies are specified in persona.md or as CLI arguments.
 
 We do not yet know what the best synthesis technique is. It may vary by domain — a high-stakes domain with complex decisions may need adversarial multi-pass review, while a routine domain may be well-served by a single model call. The framework must support experimentation.
 
@@ -461,7 +461,7 @@ Print mode (`-p`), fresh session, no shared context. The distiller reads `.conte
 
 A cron job (`bin/stage-transcripts`) runs periodically and:
 
-1. Reads the domain registry (`~/.claude/domain-toolkit/REGISTRY.md`)
+1. Reads the domain registry (`~/.claude/domain-toolkit/REGISTRY.yaml`)
 2. For each domain, reads `.context/sessions/session-index.jsonl`
 3. For each session, checks if the source JSONL has grown since last staging
 4. Extracts/re-extracts transcripts (with thinking blocks) into `.transcript.md` files
@@ -473,7 +473,7 @@ This is a lightweight I/O operation — no model calls, no Claude invocations.
 
 A separate cron job runs periodically (e.g., hourly or nightly) and:
 
-1. Reads the domain registry (`~/.claude/domain-toolkit/REGISTRY.md`)
+1. Reads the domain registry (`~/.claude/domain-toolkit/REGISTRY.yaml`)
 2. For each domain, scans `.context/sessions/` for `.transcript.md` files
 3. Checks the source JSONLs for `[DOMAIN-TOOLKIT]` markers — sessions with content after (or without) a marker need synthesis
 4. Invokes the distiller for domains with pending work

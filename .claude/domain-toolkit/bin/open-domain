@@ -58,8 +58,8 @@ DOMAIN_PATH="$(cd "$DOMAIN_PATH" 2>/dev/null && pwd)" || {
 DOMAIN_NAME="$(basename "$DOMAIN_PATH")"
 
 # Validate domain
-if [ ! -f "$DOMAIN_PATH/.claude/agent.md" ]; then
-  echo "Error: Not a domain (no .claude/agent.md)." >&2
+if [ ! -f "$DOMAIN_PATH/.claude/domain-toolkit/domain.yaml" ]; then
+  echo "Error: Not a domain (no .claude/domain-toolkit/domain.yaml)." >&2
   echo "Bootstrap it with: touch-domain --new $DOMAIN_PATH" >&2
   exit 1
 fi
@@ -79,7 +79,7 @@ case "$VIEWPORT" in
     ;;
   terminal)
     echo "Opening $DOMAIN_NAME in terminal Claude Code..."
-    echo "  Agent config: $DOMAIN_PATH/.claude/agent.md"
-    exec claude --append-system-prompt-file "$DOMAIN_PATH/.claude/agent.md"
+    echo "  Persona: $DOMAIN_PATH/persona.md"
+    exec claude --append-system-prompt-file "$DOMAIN_PATH/persona.md"
     ;;
 esac

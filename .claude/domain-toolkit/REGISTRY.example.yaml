@@ -1,0 +1,35 @@
+# ~/.claude/domain-toolkit/REGISTRY.yaml (Template)
+#
+# Copy to REGISTRY.yaml (same directory) and populate with real domains.
+# Future updates via add-domain --update (scans domain.yaml files on disk).
+#
+# This file is local — paths are machine-specific. Do not commit to shared repos.
+# The template (REGISTRY.example.yaml) is the portable version.
+
+generated: null
+scan_paths:
+  - ~/sources
+  # Add additional scan paths as needed:
+  # - ~/sources/infrastructure
+  # - ~/sources/clients
+
+# ── Domain Entries ────────────────────────────────────────────────
+
+domains:
+
+  example-project:
+    path: ~/sources/example-project
+    repo: example-project
+    type: subject
+    description: "Example entry — replace with real domain description."
+    sets:
+      - example-set
+    canonical_source: your-server:/path/to/example-project.git
+    kit_health: no
+    last_touched: null
+
+# ── Sets Index (computed reverse lookup) ──────────────────────────
+
+sets:
+  example-set:
+    - example-project
