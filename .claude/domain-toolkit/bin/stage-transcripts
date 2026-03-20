@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stage Claude Code session transcripts into domain .context/sessions/ directories.
 
-Walks all registered domains (from REGISTRY.md), reads each domain's
+Walks all registered domains (from REGISTRY.yaml), reads each domain's
 .context/sessions/session-index.jsonl, extracts JSONL transcripts into
 readable markdown (with thinking blocks), and stages them in-place.
 
@@ -13,33 +13,37 @@ Designed to run as a cron job or manually after sessions.
 
 import json
 import os
-import re
 import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-FIREHOSE_ROOT = SCRIPT_DIR.parent
-REGISTRY_FILE = FIREHOSE_ROOT / "firehose" / "REGISTRY.md"
+try:
+    import yaml
+except ImportError:
+    sys.exit("PyYAML required: pip install pyyaml")
+
+REGISTRY_FILE = Path.home() / ".claude" / "domain-toolkit" / "REGISTRY.yaml"
 
 
 def parse_registry():
-    """Extract domain paths from REGISTRY.md table."""
+    """Extract domain paths from REGISTRY.yaml."""
     if not REGISTRY_FILE.exists():
         print(f"Registry not found: {REGISTRY_FILE}", file=sys.stderr)
         return []
 
+    data = yaml.safe_load(REGISTRY_FILE.read_text())
+    if not data or "domains" not in data:
+        return []
+
     paths = []
-    for line in REGISTRY_FILE.read_text().splitlines():
-        # Match table rows: | name | ~/path | ...
-        m = re.match(r'^\|\s*\S+\s*\|\s*(~?\S+)\s*\|', line)
-        if m:
-            raw = m.group(1).strip()
-            if raw.startswith("~"):
-                raw = str(Path.home() / raw[2:])
-            if raw and not raw.startswith("-") and raw != "Path":  # skip header/separator
-                paths.append(Path(raw))
+    for _name, entry in data["domains"].items():
+        raw = entry.get("path", "")
+        if not raw:
+            continue
+        if raw.startswith("~"):
+            raw = str(Path.home() / raw[2:])
+        paths.append(Path(raw))
     return paths
 
 
