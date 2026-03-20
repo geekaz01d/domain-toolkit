@@ -73,7 +73,7 @@ Operates from the outside, objectively. The universal entry point for domain mai
 - `add-domain --new` calls `touch-domain --new` under the hood, then registers
 - Manages Syncthing folder setup as part of scaffolding
 
-**Defined in:** Not yet implemented. See `registry-spec.md` for specification.
+**Defined in:** `add-domain` SKILL.md. See `registry-spec.md` for specification.
 
 ---
 
@@ -127,7 +127,7 @@ group-domain --list               # list all sets
 - Triggers registry rebuild after changes
 - Source of truth for set membership is always domain.yaml
 
-**Defined in:** Not yet implemented. See `registry-spec.md` for specification.
+**Defined in:** `group-domain` SKILL.md. See `registry-spec.md` for specification.
 
 ---
 
@@ -188,7 +188,7 @@ distill-domain --all              # walk registry, distill all domains with pend
 - May run `touch-domain --no-touchy` across domains for deeper health check
 - This is a System 4 function (VSM) — intelligence, looking outward and forward
 
-**Defined in:** Not yet implemented. See `domain-model-semantics.md` for the overview function design.
+**Defined in:** `domain-overview` SKILL.md. See `domain-model-semantics.md` for the overview function design.
 
 ---
 
