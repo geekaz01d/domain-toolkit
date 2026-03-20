@@ -27,11 +27,11 @@ Foundational specs (partially superseded — see notices in each file):
 |---------|---------|--------|
 | **`touch-domain`** | Kit health — validation, git precheck, profile regen, scaffolding, bootstrapping | Implemented |
 | **`open-domain`** | Viewport launch — single domain or set, Cursor/terminal/container | Implemented (single domain only) |
-| **`add-domain`** | Registry management — scan, register, scaffold new domains | Not yet implemented |
-| **`group-domain`** | Set management — organise domains into named groups | Not yet implemented |
+| **`add-domain`** | Registry management — scan, register, scaffold new domains | Implemented |
+| **`group-domain`** | Set management — organise domains into named groups | Implemented |
 | **`rename-domain`** | Domain identity — rename safely across all references | Not yet implemented |
 | **`distill-domain`** | Memory processing — isolated post-session distillation | Pending (distiller prompt not written) |
-| **`overview`** | Capacity-aware briefing — registry scan filtered through personal domain | Not yet implemented |
+| **`overview`** | Capacity-aware briefing — registry scan filtered through personal domain | Implemented |
 
 ## When working inside a domain kit
 
