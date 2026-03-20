@@ -98,6 +98,14 @@ last_touched: 2026-03-18         # Date of last touch-domain run.
 | `kit_health` | enum | `yes`, `no`, or `partial`. Structural health of `.context/` at last check. |
 | `last_touched` | date | Date of last `touch-domain` or `add-domain --update` run. |
 
+### Installation Defaults (Meta-Domain Only)
+
+These fields are specific to the domain-toolkit meta-domain's own `domain.yaml`. They provide installation-level defaults used by commands like `touch-domain --new` when bootstrapping new domains. Normal subject domains do not need these fields.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `default_remote_pattern` | string | URL template for creating bare repos on new domains. Uses `{repo}` as the substitution variable (replaced with the `repo` field value). Example: `root@server:/mnt/git/{repo}.git` |
+
 ### Freeform
 
 Any key not in the defined schema is allowed and preserved across updates. This supports domain-specific metadata without schema changes.

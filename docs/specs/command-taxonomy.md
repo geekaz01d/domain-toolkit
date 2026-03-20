@@ -48,7 +48,7 @@ Operates from the outside, objectively. The universal entry point for domain mai
 - Checks actual git remotes against domain.yaml `remotes`
 - Can scaffold CLAUDE.md from global default if missing (self-propagation)
 
-**Defined in:** `touch-domain` SKILL.md (existing, needs updating for domain.yaml and file convention changes)
+**Defined in:** `touch-domain` SKILL.md (existing, updated for domain.yaml and persona.md)
 
 ---
 
@@ -105,7 +105,7 @@ open-domain cashflow --container  # open as containerised viewport on fluffy
 - For containers: orchestrates provisioning stack (bind9, nginx, Docker)
 - Runs `touch-domain` on entry to surface concerns
 
-**Defined in:** `open-domain` SKILL.md + `bin/open-domain` (existing, needs updating for sets, containers, worktrees)
+**Defined in:** `open-domain` SKILL.md + `bin/open-domain` (existing, updated for domain.yaml/persona.md; sets and containers not yet implemented)
 
 ---
 

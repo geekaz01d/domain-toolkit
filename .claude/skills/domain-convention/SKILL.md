@@ -23,7 +23,9 @@ When this skill is active and the user asks how to structure or maintain a domai
      - `MEMORY.md` – distilled, persistent understanding across sessions.
      - `DECISIONS.md` – append-only decision log with context, alternatives, deciding factors, and “revisit if”.
      - `STATE.md` – volatile current status snapshot.
-     - `agent.md` – agent configuration and context map (persona, model tier, what to read).
+   - And at the domain root (tracked in git):
+     - `.claude/domain-toolkit/domain.yaml` – machine-readable manifest and detection signal.
+     - `persona.md` – agent identity, model tier, context map, behavioural settings.
      - `sessions/` – timestamped session artifacts (`.md`, `.log`, `.draft.md`, `processed/`).
 3. **Emphasize write rules:**
    - Agents and skills **never write directly** to canonical `MEMORY.md` or `DECISIONS.md` during a session.

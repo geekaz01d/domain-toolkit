@@ -17,11 +17,11 @@ This skill:
 - Produces updated canonical files with `status: proposed` frontmatter (in `manual` mode).
 - Marks processed sessions as `status: distilled` in their frontmatter.
 
-It must respect the **review mode** configured in `agent.md` (`memory_review: manual | flag | auto`), but should start conservatively with `manual` unless clearly configured otherwise.
+It must respect the **review mode** configured in `persona.md` (`memory_review: manual | flag | auto`), but should start conservatively with `manual` unless clearly configured otherwise.
 
 ## Model selection and strategy
 
-This skill does not hardcode a model. The appropriate model depends on the **distillation strategy** from `agent.md` (or CLI override):
+This skill does not hardcode a model. The appropriate model depends on the **distillation strategy** from `persona.md` (or CLI override):
 
 - **simple** (default): Haiku-tier. Straightforward summarization, cheap and fast.
 - **careful**: Sonnet or Opus. Used when the domain has high-stakes decisions or complex, layered context where nuance and conflict detection matter.
@@ -45,7 +45,8 @@ Under the domain root, expect:
 - `README.md` and optionally `.context/STATE.md` for grounding.
 - `.context/MEMORY.md` – current canonical memory.
 - `.context/DECISIONS.md` – current canonical decision log.
-- `.claude/agent.md` – agent config (read `memory_review` setting).
+- `persona.md` – agent identity and behavioural settings (read `memory_review` setting).
+- `.claude/domain-toolkit/domain.yaml` – domain manifest.
 - `.context/sessions/` – session artifacts with YAML frontmatter:
   - `*.md` session files with `status` frontmatter (`active`, `closed`, `distilled`).
   - `*.draft.md` memory drafts (the agent's subjective view).

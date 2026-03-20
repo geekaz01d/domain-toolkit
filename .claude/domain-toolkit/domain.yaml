@@ -21,6 +21,9 @@ remotes:
   fluffy: fluffy.geekazoid.net:/mnt/user/git/domain-toolkit.git
   github: git@github.com:geekaz01d/domain-toolkit.git
 
+# ── Installation defaults (meta-domain only) ─────────────────────
+default_remote_pattern: "root@fluffy.geekazoid.net:/mnt/user/git/{repo}.git"
+
 # ── Derived (overwritten by touch-domain / add-domain --update) ───
 kit_health: yes
-last_touched: 2026-03-18
+last_touched: 2026-03-19
