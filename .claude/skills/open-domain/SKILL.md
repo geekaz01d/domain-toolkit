@@ -4,7 +4,7 @@ description: "Launch a domain viewport for interactive work. Opens a fresh, isol
 argument-hint: "<domain-path> [--cursor | --terminal]"
 ---
 
-You are implementing the **`open-domain`** command from `orchestrator-architecture.md`. This command transitions from objective kit management to subjective interactive work inside a domain.
+You are implementing the **`open-domain`** command from `command-taxonomy.md`. This command transitions from objective kit management to subjective interactive work inside a domain.
 
 ## Argument Parsing
 

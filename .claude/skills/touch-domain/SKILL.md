@@ -4,9 +4,9 @@ description: "Universal domain kit management: structural validation, git preche
 argument-hint: "[--full | --new | --all | --no-touchy | -y] [domain-path]"
 ---
 
-You are implementing the **`touch-domain`** command from `orchestrator-architecture.md`. This is the universal entry point for any domain interaction — modal, flag-driven, and extensible.
+You are implementing the **`touch-domain`** command from `command-taxonomy.md`. This is the universal entry point for any domain interaction — modal, flag-driven, and extensible.
 
-Read `orchestrator-architecture.md` (the `touch-domain` section and `Git Conventions` subsection) and `domain-convention.md` for canonical reference. Read the meta-domain's `domain.yaml` (`~/.claude/domain-toolkit/domain.yaml` or the repo's own `.claude/domain-toolkit/domain.yaml`) for `default_remote_pattern` — the installation-level default for bare repo creation.
+Read `command-taxonomy.md` for the command definition, `set-assembly-spec.md` for the custodial checklist and agentic git operations, and `file-convention.md` for the file hierarchy. Read the meta-domain's `domain.yaml` (`~/.claude/domain-toolkit/domain.yaml` or the repo's own `.claude/domain-toolkit/domain.yaml`) for `default_remote_pattern` — the installation-level default for bare repo creation.
 
 ## Argument Parsing
 
@@ -32,7 +32,9 @@ Always follow this sequence:
 
 ## Step 1: Git Precheck
 
-If the domain path exists, check its git state. This runs **before** any touch logic. Determine which of these 6 states applies:
+If the domain path exists, check whether it is a git repository. If `.git/` does not exist (as a directory or file), this domain is **not git-managed**. Report: "Not a git repository — skipping git precheck." Proceed directly to mode dispatch. Do not prompt to initialize git here — that's `--new`'s job if the user is bootstrapping.
+
+If the domain **is** a git repo, determine which of these 5 states applies:
 
 | State | Condition | Action |
 |-------|-----------|--------|
@@ -41,15 +43,14 @@ If the domain path exists, check its git state. This runs **before** any touch l
 | **Ahead** | Local has unpushed commits | **Proceed** with touch. Surface concern. Prompt to push (unless `-y`, which auto-confirms). |
 | **Clean** | In sync with remote | **Proceed** normally. |
 | **No remote** | `.git/` exists but no remote `origin` | **Proceed** with touch. Prompt to create bare remote per `default_remote_pattern` in the meta-domain's `domain.yaml` (unless `-y`, which auto-confirms). |
-| **Not a repo** | No `.git/` directory | **Proceed** with touch. Prompt to initialize git (unless `-y`, which auto-confirms). |
 
 **Implementation:** Use `git status`, `git remote -v`, `git rev-list --left-right --count HEAD...@{upstream}` (or similar) to determine the state. Handle missing upstream gracefully.
 
-**`-y` auto-confirms** states: Ahead, No remote, Not a repo. **`-y` does NOT override** Diverged or Behind — those always block.
+**`-y` auto-confirms** states: Ahead, No remote. **`-y` does NOT override** Diverged or Behind — those always block.
 
-**`--no-touchy` skips** all prompts and writes but still reports the git state.
+**`--no-touchy` skips** all prompts and writes but still reports the git state (or the absence of git).
 
-Also check and report:
+Also check and report (git repos only):
 - Uncommitted changes (staged or unstaged)
 - Detached HEAD, mid-rebase, or merge conflict state
 - Whether the remote matches `default_remote_pattern` from the meta-domain's `domain.yaml`
@@ -120,11 +121,10 @@ New domain bootstrapping. The path may or may not exist yet.
    - Initial `STATE.md`, `MEMORY.md` (minimal), `DECISIONS.md` (empty structure)
    - `sessions/`
 5. Capture the onboarding conversation as the first session artifact in `.context/sessions/`
-6. Initialize git:
-   - `git init`
-   - Prompt to create bare repo on the server per `default_remote_pattern` in the meta-domain's `domain.yaml` (unless `-y` auto-confirms)
-   - Configure origin remote
-   - Initial commit with scaffolding
+6. **If not already a git repo**, offer to initialize git:
+   - Prompt: "Initialize git for this domain?" (unless `-y` auto-confirms, or `--no-touchy` skips)
+   - If yes: `git init`, prompt to create bare repo on the server per `default_remote_pattern` in the meta-domain's `domain.yaml`, configure origin remote, initial commit with scaffolding
+   - If no (or `--no-touchy`): skip git initialization. The domain is fully functional without git — it just won't have version control or remote backup. Note: "Domain created without git. You can initialize git later with `git init`."
 7. Run `--full` logic to generate PROFILE.md and `domain.code-workspace`
 8. Suggest opening the domain: `open-domain <domain> --cursor`
 

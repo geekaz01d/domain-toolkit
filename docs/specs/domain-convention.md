@@ -6,12 +6,12 @@
 > |---------|-------------------|
 > | Directory structure | `file-convention.md` (domain.yaml + persona.md) |
 > | domain.yaml / persona.md file roles | `file-convention.md`, `domain-yaml-schema.md` |
-> | Git Convention | `git-operations.md` |
+> | Git Convention | `set-assembly-spec.md` |
 > | Session Entry / Lifecycle | `file-convention.md` (load order), `command-taxonomy.md` |
 >
 > These sections have been updated to reflect current conventions (domain.yaml, persona.md) but the authoritative specs above should be preferred.
 >
-> Sections that remain current and authoritative here: Session Files (lifecycle, access boundaries, frontmatter convention), MEMORY.md and DECISIONS.md structure and semantics.
+> Sections that remain current and authoritative here: Session Files (file types and roles), MEMORY.md and DECISIONS.md structure and semantics.
 
 ## Overview
 
@@ -31,9 +31,9 @@ A **domain** is a folder representing a concern — narrow or broad, ephemeral o
     DECISIONS.md        # Structured decision log (append-only)
     STATE.md            # Current status snapshot (volatile, frequently updated)
     sessions/
-      <timestamp>.md        # Structured session notes (frontmatter-tracked lifecycle)
-      <timestamp>.draft.md  # Memory draft (agent's proposed memories, written at session close)
-      <timestamp>.log       # Raw session transcript (optional)
+      <timestamp>.md             # Structured session notes
+      <timestamp>.draft.md       # Memory draft (agent's proposed memories, written at session close)
+      <timestamp>.transcript.md  # Staged transcript (extracted from CC JSONL by stager)
   persona.md            # Agent identity, model tier, context map (tracked)
   README.md             # Canonical description of what this domain is
   ...domain content...
@@ -108,34 +108,9 @@ DECISIONS.md is append-only. The distiller may add new entries but never modifie
 
 ## Session Files
 
-Sessions live in `.context/sessions/` and are **permanent**. They are never moved or deleted. Their lifecycle is tracked via YAML frontmatter.
+Sessions live in `.context/sessions/` and are **permanent**. They are never moved or deleted. The session corpus is the durable asset — re-distillation is always possible.
 
-### Session Lifecycle
-
-```yaml
----
-status: active         # session in progress
-created: 2026-03-10T14:37:22
----
-```
-
-| Status | Meaning | Set by |
-|--------|---------|--------|
-| `active` | Session is in progress. | Agent (on session start) |
-| `closed` | Session is complete. Ready for distillation. | Agent (opportunistically at session end) |
-| `distilled` | Distiller has processed this session. | Distiller (after successful run) |
-
-The agent may **opportunistically close** a session when it senses work is winding down. If the session continues, the agent resets status to `active`. This is cheap — just a frontmatter edit.
-
-Because session files are permanent, re-distillation is always possible. Reset a session's status to `closed` and the distiller will reprocess it. The session corpus is the durable asset.
-
-### Access Boundaries
-
-| Actor | Session files | Canonical files |
-|-------|--------------|-----------------|
-| **Working agent** | Writes (append-only). Never reads back. | Reads on entry. Never writes. |
-| **Distiller** | Reads (to extract knowledge). Never writes (except frontmatter status). | Writes (proposed or committed updates). |
-| **Human** | Can author directly. | Approves distiller proposals. Can edit directly. |
+Session lifecycle tracking, access boundaries, and synthesis markers are defined in `distiller-spec.md`.
 
 ### `<timestamp>.md` — Session Notes
 
@@ -150,22 +125,13 @@ Written by the agent during a session. Each entry captures:
 
 The agent's proposed memories for the session, written at session close. This is what the agent *thinks* should be remembered — the subjective view. The distiller uses it as a secondary signal, comparing the agent's judgment against its own objective extraction from session notes.
 
-### `<timestamp>.log` — Raw Transcript
+### `<timestamp>.transcript.md` — Staged Transcript
 
-Full session transcript including thinking blocks. Capture mechanism TBD — Claude Code does not natively export transcripts. Candidates: LiteLLM gateway logging, `script` terminal capture, future Claude Code export feature. This is a major open design question (see Open Threads).
-
-When available, raw transcripts are valuable input for the `careful` and `adversarial` distillation strategies, and essential for corpus re-derivation when the distiller improves.
+Session transcript extracted from CC's session JSONL by the stager (`bin/stage-transcripts`). Includes thinking blocks. See `distiller-spec.md` for the staging mechanism, synthesis strategies, and the full session lifecycle.
 
 ## Git Convention
 
-Domains that are git repos follow a standard remote and repository configuration. This provides an audit trail for agentic changes and ensures work is never lost.
-
-**Standard setup:**
-- Local git repo in the domain directory
-- Bare remote on a configured primary server (host and path pattern defined in local config)
-- Optional secondary mirror (e.g., GitHub private repo, per-domain opt-in)
-
-**Installation defaults** (default remote pattern for new domains) live in the meta-domain's `domain.yaml` as `default_remote_pattern`. Per-domain overrides live in each domain's `domain.yaml` (see `remotes` and `canonical_source` fields).
+Git conventions — remote configuration, custodial checklist, agentic operations, recovery — are defined in `set-assembly-spec.md`. Remote and branch declarations are part of `domain-yaml-schema.md`.
 
 **What belongs in git:**
 - All domain content (source, docs, config)
@@ -208,13 +174,11 @@ The domain is born version-controlled, context-aware, and ready for interactive 
 
 ### Post-Session
 
-1. Scheduled cron job (or manual `distill <domain>`) detects sessions with `status: closed`
-2. Distiller (isolated `claude -p` invocation) reads closed sessions + current canonical files
-3. Updated canonical files written with `status: proposed` frontmatter (in `manual` mode)
-4. Review gate (per persona.md config): human review, auto-commit, or flag
-5. Human approves by updating frontmatter (or distiller auto-commits in `auto` mode)
-6. Distiller marks processed sessions as `status: distilled` in their frontmatter
-7. Git commit captures the session's canonical changes
+1. Scheduled cron job (or manual `distill-domain <domain>`) processes pending sessions
+2. Distiller (isolated `claude -p` invocation) reads session transcripts + current synthesized files
+3. Proposes updates to MEMORY.md and DECISIONS.md
+4. Review gate (per persona.md `memory_review` setting): human review, auto-commit, or flag
+5. See `distiller-spec.md` for session tracking, synthesis markers, and the full pipeline
 
 ### Periodic Maintenance
 

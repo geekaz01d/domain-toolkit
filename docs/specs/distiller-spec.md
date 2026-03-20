@@ -131,7 +131,7 @@ Session artifacts are stored domain-local in `.context/` and become portable. Th
 - Session transcripts staged domain-local (`.context/sessions/`)
 - Synthesized MEMORY.md and DECISIONS.md in `.context/`
 - Human review gate (`status: proposed` frontmatter)
-- Manual `distill <domain>` invocation
+- Manual `distill-domain <domain>` invocation
 - CC memory conflict resolution (redirect or archive after synthesis)
 
 ### Stage 2 — Synthesis orchestration
@@ -152,7 +152,7 @@ The synthesis loop runs unattended.
 **What Stage 2.5 delivers:**
 - Cron-driven transcript staging (`bin/stage-transcripts`)
 - Cron-driven synthesis across the domain registry
-- Batch processing (`distill --all`)
+- Batch processing (`distill-domain --all`)
 - Synthesis markers in JSONL (high-water marks for incremental processing)
 - No dependency on running IDE or interactive session
 
@@ -290,9 +290,9 @@ Approval is flipping `status: proposed` to `status: approved` (or removing the f
 
 | Mode | Trigger | Execution Context | Stage |
 |------|---------|-------------------|-------|
-| **Manual** | `distill <domain>` or `/distill-domain` skill | From any terminal or session. Human-initiated. | 1 |
+| **Manual** | `distill-domain <domain>` or `/distill-domain` skill | From any terminal or session. Human-initiated. | 1 |
 | **Scheduled** | Cron job detects staged transcripts without `[DOMAIN-TOOLKIT]` markers | System-level. No interactive session. | 2.5 |
-| **Batch** | `distill --all` | Iterates registry. Processes all domains with pending work. | 2.5 |
+| **Batch** | `distill-domain --all` | Iterates registry. Processes all domains with pending work. | 2.5 |
 
 The **scheduled cron job** (Stage 2.5) walks the domain registry, checks each domain's `.context/sessions/` for transcripts that haven't been fully synthesized (by scanning the source JSONLs for `[DOMAIN-TOOLKIT]` markers), and runs synthesis against those domains. This decouples synthesis from the interactive session entirely.
 
@@ -432,13 +432,13 @@ The distiller does not care who authored session artifacts. If a human drops a m
 ## CLI Interface
 
 ```
-distill <domain>                     # synthesize a single domain
-distill --all                        # synthesize all domains with pending sessions
-distill <domain> --strategy careful  # override strategy for this run
-distill <domain> --model opus        # override model for this run
-distill <domain> --re-synth          # reprocess corpus (remove markers, re-run)
-distill <domain> --dry-run           # show what would be processed, don't execute
-distill --pending                    # list all domains with unsynthesized sessions
+distill-domain <domain>                     # synthesize a single domain
+distill-domain --all                        # synthesize all domains with pending sessions
+distill-domain <domain> --strategy careful  # override strategy for this run
+distill-domain <domain> --model opus        # override model for this run
+distill-domain <domain> --re-synth          # reprocess corpus (remove markers, re-run)
+distill-domain <domain> --dry-run           # show what would be processed, don't execute
+distill-domain --pending                    # list all domains with unsynthesized sessions
 ```
 
 ## Implementation Notes

@@ -35,7 +35,7 @@ This system makes the domain kit the unit of collaboration. The agent reads the 
 | **`open-domain`** | Viewport launch. Opens a domain or set for interactive work. Cursor, terminal, or containerised viewport. |
 | **`add-domain`** | Registry management. Scan, register, scaffold new domains. Builds the derived REGISTRY.yaml from domain.yaml files on disk. |
 | **`group-domain`** | Set management. Organise domains into named groups via domain.yaml `sets` field. |
-| **`rename-domain`** | Domain identity. Rename safely across domain.yaml, registry, git remotes, set memberships. |
+| **`rename-domain`** | Domain identity. Rename the logical name (`name` field in domain.yaml) and rebuild the registry. Does not touch repo name, directory, or remotes — storage reorganisation is a separate concern. |
 | **`distill-domain`** | Memory processing. Transforms session artifacts into proposed updates to canonical files. Runs in isolated context — no access to the working session's conversation history. Debiased by design. |
 | **`overview`** | Capacity-aware briefing. Scans the registry, filters through the personal domain profile, produces a prioritised view of what deserves attention. |
 
@@ -70,13 +70,13 @@ See `docs/specs/` for the full specification set:
 - `domain-yaml-schema.md` — domain.yaml schema
 - `domain-model-semantics.md` — domain types, authorship vs operation, overview function
 - `registry-spec.md` — derived registry, scan paths, sets index
-- `git-operations.md` — three-tier disposability, sync model, custodial checklist
-- `set-assembly-spec.md` — worktree assembly, set roots, Docker integration
+- `set-assembly-spec.md` — worktree assembly, set roots, Docker integration, custodial checklist, agentic git operations, git recovery
 - `storage-and-services.md` — storage topology, containerised viewports, Syncthing overlay
 - `distiller-spec.md` — distillation pipeline, strategies, review gate
 - `sandbox-test-data.md` — demo sandbox specification
 - `orchestrator-architecture.md` — original architecture (partially superseded)
 - `domain-convention.md` — original convention (partially superseded)
+- `git-operations.md` — original git consolidation (superseded by set-assembly-spec.md)
 
 ## Current state
 

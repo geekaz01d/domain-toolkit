@@ -5,7 +5,7 @@
 > | Section | Authoritative spec |
 > |---------|-------------------|
 > | Commands (touch-domain, open-domain, /map, sweep) | `command-taxonomy.md` (7 commands) |
-> | Git Conventions | `git-operations.md` |
+> | Git Conventions | `set-assembly-spec.md` |
 > | Domain Registry format | `registry-spec.md` (REGISTRY.yaml) |
 > | Domain Viewport / workspace file | `set-assembly-spec.md`, `storage-and-services.md` |
 > | File convention (detection, persona, governance) | `file-convention.md` (domain.yaml + persona.md) |

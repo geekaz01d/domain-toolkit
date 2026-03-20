@@ -1,13 +1,13 @@
 # Set Assembly Spec
 
-**Status:** Draft — captured from working session 2026-03-18
-**Context:** Defines how domain sets are materialised as physical workspaces using git worktrees, and how they integrate with containerised domain viewports.
+**Status:** Draft — captured 2026-03-18, revised 2026-03-20 (non-git assembly, context modes, git operations absorbed from git-operations.md)
+**Context:** Defines how domain sets are materialised as physical workspaces using git worktrees, how they integrate with containerised domain viewports, and the git conventions (custodial checklist, agentic operations, recovery) that apply to all managed domains.
 
 ---
 
 ## Design Principles
 
-1. **Sets are always derivatives.** Set assembly always uses git worktrees in a managed location. The original checkouts in `~/sources/` are untouched.
+1. **Sets are always derivatives.** Set assembly creates isolated copies in a managed location — git worktrees for git repos, directory copies for non-git domains. The originals are untouched.
 2. **Worktrees live in a dotfolder.** Assembled sets go in `~/.claude/domain-toolkit/worktrees/`, not loose in `~/sources/`. Clean separation between source repos and managed infrastructure.
 3. **Folder structure is organisational, not semantic.** The fact that repos share a parent directory (e.g. `infrastructure/`) is a filesystem convenience, not a grouping mechanism. Sets are defined in the registry via domain.yaml. Folder co-location is irrelevant to set membership.
 4. **Data integrity first.** Worktrees are disposable derivatives. The bare repo on fluffy is the source of truth. The original checkout in `~/sources/` is the primary working copy. Worktrees are the most disposable tier.
@@ -37,7 +37,7 @@ The set root gets its own:
 - `.claude/domain-toolkit/domain.yaml` — set manifest
 - `persona.md` — set-level persona (optional, for set-level agent work)
 
-**Contexts never mix.** The set root's `.context/` (if it exists) is about set-level coordination work. Each member worktree retains its own `CLAUDE.md`, `persona.md`, and `.context/` independently. An agent working at set level writes to the set root's context. An agent working inside a member writes to that member's context. There is no blending.
+**Contexts never mix.** The set root's `.context/` (if it exists) is about set-level coordination work. Each member gets access to its primary's `.context/` via symlink (for set members) or snapshot copy (for standalone copies) — see "Context Files in Assembly." An agent working at set level writes to the set root's context. An agent working inside a member writes to that member's context. There is no blending.
 
 ---
 
@@ -158,6 +158,77 @@ The set root's `CLAUDE.md` provides project mechanics. The set root's `persona.m
 
 ---
 
+## Non-Git Domain Assembly
+
+Not all domains are git repositories. A domain may be unversioned (no `.git/`), or the user may have declined git init during `touch-domain --new`. Sets can still include non-git domains — the assembly mechanism adapts.
+
+### Assembly: Directory Copy
+
+For non-git members, `open-domain` copies the domain's working files into the set assembly location instead of creating a worktree:
+
+```bash
+# git member
+cd ~/sources/cashflow
+git worktree add ~/.claude/domain-toolkit/worktrees/finance/cashflow main
+
+# non-git member
+rsync -a --exclude='.context/' ~/sources/budgets/ \
+  ~/.claude/domain-toolkit/worktrees/finance/budgets/
+```
+
+The copy excludes `.context/` from the rsync — context is handled separately by the assembly step (see "Context Files in Assembly" below) based on whether this is a multi-member set (symlink) or a standalone copy (duplicate).
+
+### Merge Back
+
+With git worktrees, changes flow back to the primary via commits — they share an object store. Non-git copies have no such channel. Changes made in the copy are orphaned unless explicitly merged back.
+
+`open-domain` (or a teardown step) should offer: "Non-git member `budgets` has been modified. Merge changes back to primary?" This is a human-in-the-loop operation:
+
+1. Diff the copy against the primary (excluding `.context/`)
+2. Present the diff for review
+3. On confirmation, copy changed files back to the primary
+4. On decline, note that changes remain in the assembly location until teardown
+
+This is deliberately manual. Without version control, there's no safe way to auto-merge — the primary may have changed while the copy was being worked on.
+
+### Teardown
+
+Non-git copies are removed with `rm -rf`, same disposability as worktrees. If changes weren't merged back, they're lost. The teardown step should check for unmerged modifications and warn before deleting.
+
+### Context Files in Assembly
+
+`.context/` is gitignored and therefore does **not** propagate into git worktrees. For non-git copies, `rsync --exclude='.context/'` achieves the same result. In both cases, the assembly step must explicitly handle context.
+
+The context strategy is implicit in the assembly type — no flags needed:
+
+**Multi-member set → symlinked context.** Each member gets a symlink from `.context/` back to the primary's `.context/`. The member IS the domain — it should have the domain's accumulated memory, decisions, and profile. Session notes written in the assembly land in the primary's sessions/ directory, timestamped and attributable.
+
+```bash
+# after worktree creation or directory copy
+ln -s ~/sources/cashflow/.context \
+  ~/.claude/domain-toolkit/worktrees/finance/cashflow/.context
+```
+
+**Single-member set (standalone copy) → duplicated context.** The copy gets a snapshot of `.context/` at assembly time. From that point, the context diverges independently. This is the right model because the purpose of a standalone copy is isolation — the user is experimenting, branching, or exploring. The duplicated context becomes an orphan: merge it back or discard it at teardown.
+
+```bash
+# non-git standalone copy
+rsync -a ~/sources/cashflow/ \
+  ~/.claude/domain-toolkit/worktrees/cashflow-experiment/cashflow/
+
+# git standalone worktree + context snapshot
+cd ~/sources/cashflow
+git worktree add ~/.claude/domain-toolkit/worktrees/cashflow-experiment/cashflow main
+cp -a ~/sources/cashflow/.context \
+  ~/.claude/domain-toolkit/worktrees/cashflow-experiment/cashflow/.context
+```
+
+The machinery knows which mode because it already knows the member count. No user decision required.
+
+**In both modes, the primary's `.context/` is never modified by the assembly step itself.** Symlinks allow writes to flow through; copies create an independent snapshot.
+
+---
+
 ## Branch Considerations
 
 A git repo can only have one worktree per branch. If `cashflow` is checked out on `main` in `~/sources/cashflow`, the worktree cannot also be on `main`.
@@ -169,3 +240,66 @@ Options:
 - **Original moves**: Check out a different branch in the original, freeing `main` for the worktree. Only makes sense if you're not actively working in the original.
 
 The default for `open-domain` should be detached HEAD (safest, most disposable). If the user needs a branch, they create one explicitly.
+
+---
+
+## Custodial Checklist (`touch-domain`)
+
+On domain entry, `touch-domain` surfaces git-relevant concerns:
+
+- **Working tree clean?** Uncommitted changes (staged or unstaged).
+- **Up to date?** Unpushed commits, behind remote.
+- **Remote reachable?** Can the bare repo on fluffy be contacted?
+- **Branches with unpushed work?** Any local branches ahead of their tracking branches.
+- **Remote match?** Do actual git remotes match `domain.yaml` declarations?
+- **Repo name match?** Does directory basename match `domain.yaml` `repo` field?
+- **Detached HEAD or mid-rebase?** Unusual git states surfaced as concerns.
+
+These are **surfaced as concerns, not silently fixed.** The human decides what to do. The exceptions (with `-y` flag) are:
+
+- Auto-confirm push when Ahead
+- Auto-confirm remote creation when No Remote
+- Auto-confirm git init when Not a Repo
+
+Diverged and Behind states **always block writes**, even with `-y`.
+
+---
+
+## Agentic Git Operations
+
+### Principles
+
+- **The commit is the durable act.** Working tree state between commits is ephemeral. Agents should commit meaningful checkpoints.
+- **Agents are assistive.** They can detect drift, propose changes, and execute git operations. But humans approve destructive or ambiguous operations.
+- **Prefer pipelines over syntax hunting.** Git operations should be well-tested scripts, not ad-hoc bash assembled at runtime.
+
+### What Agents Can Do
+
+- Commit with meaningful messages (always prompted or explicit)
+- Push to declared remotes
+- Pull from declared remotes (fast-forward only)
+- Create and remove worktrees
+- Report git status, log, diff
+- Surface custodial concerns
+
+### What Agents Should Not Do Without Explicit Approval
+
+- Force push
+- Rebase
+- Reset (hard or mixed)
+- Delete branches
+- Modify remote configuration
+- Resolve merge conflicts
+
+---
+
+## Git Recovery
+
+If a working tree is lost, corrupted, or needs to be rebuilt:
+
+1. Read `domain.yaml` for `canonical_source` and `remotes`
+2. Clone from `canonical_source`
+3. Configure remotes per `domain.yaml`
+4. Syncthing will populate `.context/` once the directory exists
+
+The domain's knowledge layer (`.context/`) is preserved in Syncthing. The domain's versioned content is preserved in the bare repo. A full recovery requires only a clone and a Syncthing sync.
