@@ -27,7 +27,7 @@ Foundational specs (partially superseded — see notices in each file):
 |---------|---------|--------|
 | **`touch-domain`** | Kit health — validation, git precheck, profile regen, scaffolding, bootstrapping | Implemented |
 | **`open-domain`** | Viewport launch — single domain or set, Cursor/terminal/container | Implemented (single domain only) |
-| **`add-domain`** | Registry management — scan, register, scaffold new domains | Not yet implemented |
+| **`add-domain`** | Registry management — scan, register, scaffold new domains | Implemented |
 | **`group-domain`** | Set management — organise domains into named groups | Not yet implemented |
 | **`rename-domain`** | Domain identity — rename safely across all references | Not yet implemented |
 | **`distill-domain`** | Memory processing — isolated post-session distillation | Pending (distiller prompt not written) |
@@ -51,6 +51,7 @@ Foundational specs (partially superseded — see notices in each file):
 
 - `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal.
 - `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
+- `/add-domain` – registry management: scan, register, or scaffold new domains. Builds/updates REGISTRY.yaml.
 - `/distill-domain` – distillation: transforms session artifacts into proposed `MEMORY.md` / `DECISIONS.md` updates.
 - `/domain-convention` – agent posture for domain layout and file roles (not user-invocable).
 - `/domain-overview` – cross-domain attention overview (not yet implemented).

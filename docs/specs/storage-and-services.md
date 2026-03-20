@@ -160,8 +160,7 @@ Each domain is its own Syncthing sync relationship. There is no broad parent-fol
 
 `~/.claude/domain-toolkit/` is synced as its own Syncthing shared folder across nodes. This covers:
 
-- `REGISTRY.yaml` — derived registry
-- `config.yaml` — scan paths, global config
+- `REGISTRY.yaml` — derived registry (includes scan paths)
 - `worktrees/` — set roots and their governance/context (but not the member worktree content, which is git-managed)
 
 ### Session Log Principle

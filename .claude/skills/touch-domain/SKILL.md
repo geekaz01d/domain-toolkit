@@ -70,6 +70,7 @@ Smart touch. Inspect the target path and pick the right action:
 - `.context/` directory exists
 - `.claude/domain-toolkit/domain.yaml` exists (detection signal, tracked in git)
 - `persona.md` exists at domain root (agent identity, tracked in git)
+- `CLAUDE.md` exists at domain root (domain governance, tracked in git). If missing, scaffold from `~/.claude/CLAUDE.md` (global default) with a comment noting it was auto-generated. If present, surface drift from the global default as a concern.
 - Required `.context/` files exist: `STATE.md`, `MEMORY.md`, `DECISIONS.md`, `PROFILE.md`
 - `sessions/` directory exists
 - Pointer integrity: if `persona.md` exists, check that any referenced files in its context map actually exist

@@ -114,8 +114,8 @@ touch-domain -y <path>           # suppress prompts (auto-confirm safe operation
 
 Domains that are git repos follow a standard remote configuration, defined globally with per-domain overrides.
 
-**Global defaults** (configured in `~/.claude/domain-toolkit/config.yaml` or similar):
-- **Origin**: bare repo on a configured primary server (host, path pattern defined in local config)
+**Global defaults** (in the meta-domain's `domain.yaml`):
+- **Origin**: bare repo created from `default_remote_pattern` (e.g., `root@server:/mnt/git/{repo}.git`)
 - **Mirror**: optional secondary remote (e.g., GitHub private repo, per-domain opt-in)
 - **Branch conventions**: TBD per domain needs
 

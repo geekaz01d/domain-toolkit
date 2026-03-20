@@ -13,8 +13,7 @@ sandbox/
   home/
     .claude/
       domain-toolkit/
-        REGISTRY.yaml            # Live registry — all sandbox domains
-        config.yaml              # Global config (scan paths, defaults)
+        REGISTRY.yaml            # Live registry — all sandbox domains (includes scan paths)
       hooks/
         session-start.sh         # SessionStart hook (can be a stub for demo)
     sources/

@@ -36,9 +36,10 @@ add-domain --scan-path ~/sources/fluffy_sources
 add-domain --scan-path ~/sources/infrastructure
 ```
 
-Scan paths are stored in a config file at `~/.claude/domain-toolkit/config.yaml`:
+Scan paths are stored in the registry file itself (`REGISTRY.yaml`), under the top-level `scan_paths` key. `add-domain --scan-path` appends to this list; `add-domain --update` reads it to know where to walk.
 
 ```yaml
+# In REGISTRY.yaml:
 scan_paths:
   - ~/sources
   - ~/sources/fluffy_sources
