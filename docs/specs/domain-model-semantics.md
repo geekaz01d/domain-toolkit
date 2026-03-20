@@ -80,12 +80,18 @@ The operator domain's runbook should reference the source domain for each servic
 
 The orchestrator's overview (or sweep) function operates across two inputs:
 
-1. **Registry scan** — read all subject domain profiles. What's blocked? What's decaying? What's urgent? What needs attention?
-2. **Personal domain profile** — read the operator's current state. What capacity exists? What constraints apply right now?
+1. **Registry scan** — read all subject domain profiles (or a filtered subset). What's blocked? What's decaying? What's urgent? What needs attention?
+2. **Operator context** (optional) — the operator's current state, capacity, constraints, and priorities. When present, the overview filters the registry scan through it, producing a capacity-aware briefing rather than an exhaustive list.
 
-The output is a **capacity-aware briefing** — not an exhaustive list of everything that needs doing, but a prioritised view filtered through the human's actual ability to respond.
+### Operator context is source-agnostic
 
-The personal domain is the **first read** in any sweep, not the last. You read the operator's state first and filter the subject domains through it.
+Operator context can come from multiple sources:
+
+- **Inline prompt** — the operator states constraints or priorities directly ("I have two hours, focus on finance domains")
+- **Personal domain profile** — if a personal domain exists and is registered, its PROFILE.md provides structured operator context
+- **Absent** — with no operator context, the overview produces a straight situational scan without capacity filtering
+
+The overview function degrades gracefully. With operator context it produces prioritised attention-direction; without it, a raw situational picture. Domain-toolkit defines that operator context *can* shape the overview but does not require a personal domain to exist.
 
 ---
 
@@ -129,5 +135,5 @@ The personal domain's internal structure is defined by the personal domain itsel
 | **Domain kit** | The complete set of domain-specific resources: context, memory, decisions, state, skills, sessions. |
 | **Build artifact** | The handoff point between authorship (domain) and deployment (operator). |
 | **Deployment binding** | Environment-specific connection between a build artifact and a runtime. Not domain-owned. |
-| **Overview / sweep** | Registry scan filtered through personal domain profile. Capacity-aware prioritisation. |
+| **Overview / sweep** | Registry scan, optionally filtered through operator context (inline, personal domain, or absent). Capacity-aware when operator context is present. |
 | **Graduation** | A personal domain project becoming a subject domain repo. The personal domain retains metadata and time management as an overlay. |

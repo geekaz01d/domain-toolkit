@@ -28,10 +28,10 @@ Foundational specs (partially superseded — see notices in each file):
 | **`touch-domain`** | Kit health — validation, git precheck, profile regen, scaffolding, bootstrapping | Implemented |
 | **`open-domain`** | Viewport launch — single domain or set, Cursor/terminal/container | Implemented (single domain only) |
 | **`add-domain`** | Registry management — scan, register, scaffold new domains | Implemented |
-| **`group-domain`** | Set management — organise domains into named groups | Not yet implemented |
+| **`group-domain`** | Set management — organise domains into named groups | Implemented |
 | **`rename-domain`** | Domain identity — rename safely across all references | Not yet implemented |
 | **`distill-domain`** | Memory processing — isolated post-session distillation | Pending (distiller prompt not written) |
-| **`overview`** | Capacity-aware briefing — registry scan filtered through personal domain | Not yet implemented |
+| **`overview`** | Capacity-aware briefing — registry scan filtered through personal domain | Implemented |
 
 ## When working inside a domain kit
 
@@ -53,8 +53,9 @@ Foundational specs (partially superseded — see notices in each file):
 - `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
 - `/add-domain` – registry management: scan, register, or scaffold new domains. Builds/updates REGISTRY.yaml.
 - `/distill-domain` – distillation: transforms session artifacts into proposed `MEMORY.md` / `DECISIONS.md` updates.
+- `/group-domain` – set management: organise domains into named groups. Modifies domain.yaml sets fields.
 - `/domain-convention` – agent posture for domain layout and file roles (not user-invocable).
-- `/domain-overview` – cross-domain attention overview (not yet implemented).
+- `/domain-overview` – capacity-aware briefing: registry scan filtered through personal domain profile.
 
 ## Workflow
 
