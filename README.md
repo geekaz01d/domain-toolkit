@@ -1,4 +1,4 @@
-# Domain Kit Engineering (working title)
+# Domain Kit Engineering
 
 ## What this is
 
@@ -74,9 +74,6 @@ See `docs/specs/` for the full specification set:
 - `storage-and-services.md` — storage topology, containerised viewports, Syncthing overlay
 - `distiller-spec.md` — distillation pipeline, strategies, review gate
 - `sandbox-test-data.md` — demo sandbox specification
-- `orchestrator-architecture.md` — original architecture (partially superseded)
-- `domain-convention.md` — original convention (partially superseded)
-- `git-operations.md` — original git consolidation (superseded by set-assembly-spec.md)
 
 ## Current state
 
