@@ -77,4 +77,4 @@ See `docs/specs/` for the full specification set:
 
 ## Current state
 
-Spec-revised, scope expanding. See `.context/STATE.md` for details.
+Work in progress — not ready for local use.
