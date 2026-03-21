@@ -11,15 +11,16 @@ Core specs (current):
 - `docs/specs/domain-yaml-schema.md` – domain.yaml schema (detection signal, registry metadata)
 - `docs/specs/domain-model-semantics.md` – domain types (subject, personal, operator), authorship vs operation lifecycle
 - `docs/specs/registry-spec.md` – derived REGISTRY.yaml, scan paths, sets index, name resolution
-- `docs/specs/git-operations.md` – three-tier disposability, sync model, custodial checklist, agentic git operations
-- `docs/specs/set-assembly-spec.md` – git worktrees for set assembly, set roots, Docker integration
+- `docs/specs/set-assembly-spec.md` – git worktrees for set assembly, set roots, Docker integration, custodial checklist, agentic git operations, git recovery
 - `docs/specs/storage-and-services.md` – storage topology, containerised viewports, Syncthing overlay
+- `docs/specs/rename-spec.md` – rename identity model, scopes, execution order, boundaries
 - `docs/specs/distiller-spec.md` – distillation pipeline, isolation requirement, strategies, review gate
 
 Foundational specs (partially superseded — see notices in each file):
 
 - `docs/specs/orchestrator-architecture.md` – original architecture. Domain kit concept, concurrency, persistence.
 - `docs/specs/domain-convention.md` – original convention. Session files, MEMORY/DECISIONS structure.
+- `docs/specs/git-operations.md` – original git consolidation. Absorbed into set-assembly-spec.md and storage-and-services.md.
 
 ## Command taxonomy
 
@@ -29,7 +30,7 @@ Foundational specs (partially superseded — see notices in each file):
 | **`open-domain`** | Viewport launch — single domain or set, Cursor/terminal/container | Implemented (single domain only) |
 | **`add-domain`** | Registry management — scan, register, scaffold new domains | Implemented |
 | **`group-domain`** | Set management — organise domains into named groups | Implemented |
-| **`rename-domain`** | Domain identity — rename safely across all references | Not yet implemented |
+| **`rename-domain`** | Domain identity — rename the logical name (label only, not storage) | Implemented |
 | **`distill-domain`** | Memory processing — isolated post-session distillation | Pending (distiller prompt not written) |
 | **`overview`** | Capacity-aware briefing — registry scan filtered through personal domain | Implemented |
 
@@ -54,6 +55,7 @@ Foundational specs (partially superseded — see notices in each file):
 - `/add-domain` – registry management: scan, register, or scaffold new domains. Builds/updates REGISTRY.yaml.
 - `/distill-domain` – distillation: transforms session artifacts into proposed `MEMORY.md` / `DECISIONS.md` updates.
 - `/group-domain` – set management: organise domains into named groups. Modifies domain.yaml sets fields.
+- `/rename-domain` – domain identity: rename a domain's logical name (the `name` field in domain.yaml). Does not touch repo name, directory, bare repo, or remote URLs — storage reorganisation is a separate concern.
 - `/domain-convention` – agent posture for domain layout and file roles (not user-invocable).
 - `/domain-overview` – capacity-aware briefing: registry scan filtered through personal domain profile.
 

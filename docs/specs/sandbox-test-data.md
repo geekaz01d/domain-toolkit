@@ -350,7 +350,7 @@ After a coding session in webshop, run the distiller. Shows session artifacts be
 
 ### Session Artifacts
 
-Each domain with an active kit should have 2-3 session files in `.context/sessions/` to demonstrate the distillation pipeline. At least one domain (webshop) should have a session with `status: closed` ready for distillation demo.
+Each domain with an active kit should have 2-3 session files in `.context/sessions/` to demonstrate the distillation pipeline. At least one domain (webshop) should have staged transcripts ready for distillation demo.
 
 ### Git State Variety
 

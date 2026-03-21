@@ -130,13 +130,13 @@ These are surfaced as concerns, not silently fixed.
 
 ### What Syncthing Syncs
 
-Syncthing syncs the **domain-toolkit overlay** — governance files and the knowledge layer — per domain across viewport nodes (laptop ↔ fluffy ↔ future VPS). Everything else travels via git.
+Syncthing syncs the **knowledge layer** — `.context/` — per domain across viewport nodes (laptop ↔ fluffy ↔ future VPS). Everything else travels via git.
 
 **Per domain, the sync scope is:**
 
 - `<domain>/.context/` — knowledge layer (sessions, memory, decisions, state, profile)
 
-Git-tracked files (`CLAUDE.md`, `AGENTS.md`, `.claude/domain-toolkit/domain.yaml`, `persona.md`) travel via git push/pull. Syncthing's scope is exclusively the gitignored overlay — the knowledge layer that git doesn't manage. These two systems have distinct, non-overlapping scopes.
+Git-tracked files (`CLAUDE.md`, `AGENTS.md`, `.claude/domain-toolkit/domain.yaml`, `persona.md`) travel via git push/pull. Syncthing's scope is exclusively `.context/` — the gitignored knowledge layer. These two systems have distinct, non-overlapping scopes.
 
 **Per set root, the same scope applies:**
 
@@ -152,7 +152,7 @@ Git-tracked files (`CLAUDE.md`, `AGENTS.md`, `.claude/domain-toolkit/domain.yaml
 
 Each domain is its own Syncthing sync relationship. There is no broad parent-folder sync.
 
-- Laptop's `~/sources/cashflow/{CLAUDE.md,AGENTS.md,.claude/,.context/}` syncs with fluffy's `/mnt/user/sources/cashflow/{CLAUDE.md,AGENTS.md,.claude/,.context/}`
+- Laptop's `~/sources/cashflow/.context/` syncs with fluffy's `/mnt/user/sources/cashflow/.context/`
 - Each domain is independent. Adding a new domain means adding a new Syncthing sync relationship.
 - `add-domain` or `touch-domain` manages Syncthing folder setup as part of domain scaffolding. No manual configuration.
 
@@ -185,7 +185,7 @@ Agents writing to disk need to be disciplined. This is a policy concern that req
 - What is the audit log format and where does it live?
 - How does the audit log relate to the existing session-index.jsonl?
 - Should agents be sandboxed per-domain using Claude Code's sandbox config declared in the domain kit?
-- What is the policy for agentic git operations? (commit, push — see git-operations.md, pending)
+- What is the policy for agentic git operations? (see `set-assembly-spec.md`)
 
 ---
 
@@ -205,7 +205,7 @@ An open design question: what if FLUFFY remained the source of truth (git bare r
 
 ### Git Operations
 
-Git workflow, branching strategy, remote management, and safe agentic git operations are a separate concern with sufficient depth to warrant their own artifact. See `git-operations.md`.
+Git workflow, branching strategy, remote management, and safe agentic git operations are covered in `set-assembly-spec.md`.
 
 ---
 

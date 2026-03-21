@@ -4,7 +4,7 @@ description: Run the domain-toolkit distillation pipeline for a single domain by
 user-invocable: false
 context: fork
 model: opus
-argument-hint: "[domain-path] [--re-distill] [--strategy simple|careful|adversarial]"
+argument-hint: "[domain-path] [--re-synth] [--strategy simple|adversarial|custom]"
 ---
 
 You are implementing the **distiller** described in `distiller-spec.md` as a Claude Code skill for a single domain.
@@ -13,27 +13,28 @@ You are implementing the **distiller** described in `distiller-spec.md` as a Cla
 
 This skill:
 
-- Reads canonical files (`MEMORY.md`, `DECISIONS.md`) and session artifacts with `status: closed` frontmatter.
-- Produces updated canonical files with `status: proposed` frontmatter (in `manual` mode).
-- Marks processed sessions as `status: distilled` in their frontmatter.
+- Reads synthesized files (`MEMORY.md`, `DECISIONS.md`) and session artifacts.
+- Produces updated synthesized files with `status: proposed` frontmatter (in `manual` mode).
 
 It must respect the **review mode** configured in `persona.md` (`memory_review: manual | flag | auto`), but should start conservatively with `manual` unless clearly configured otherwise.
+
+> **Note:** The session tracking mechanism (how the distiller knows which sessions have been processed) is under revision. `distiller-spec.md` defines a JSONL marker approach. This skill currently uses frontmatter-based tracking as an interim mechanism. See `distiller-spec.md` for the target design.
 
 ## Model selection and strategy
 
 This skill does not hardcode a model. The appropriate model depends on the **distillation strategy** from `persona.md` (or CLI override):
 
-- **simple** (default): Haiku-tier. Straightforward summarization, cheap and fast.
-- **careful**: Sonnet or Opus. Used when the domain has high-stakes decisions or complex, layered context where nuance and conflict detection matter.
-- **adversarial**: Multi-pass. First pass generates proposals (any model), second pass reviews them against canonical state with a different prompt or model.
+- **simple** (default): Single model call. Opus-tier — synthesis is judgment-heavy, not mere summarization. Can be downgraded to Sonnet for routine/low-stakes domains once a proven prompt exists.
+- **adversarial**: Multi-pass. First pass generates proposals (any model), second pass reviews them against synthesized state with a different prompt or model.
+- **custom**: Human-defined strategy script or prompt template.
 
-During early use (before you trust the pipeline), prefer running at **Sonnet-tier or above** regardless of configured strategy. Haiku is an optimization you make after validating that distillation quality meets your bar.
+During early use (before you trust the pipeline), prefer running at **Sonnet-tier or above** regardless of configured strategy.
 
 ## How to interpret arguments
 
 - If `$ARGUMENTS` is provided, treat the first positional argument as the **domain root path** (relative or absolute).
 - If no positional argument is provided, treat the **current working directory** as the domain root.
-- `--re-distill`: Reset all `status: distilled` sessions back to `status: closed`, then process normally.
+- `--re-synth`: Reset session tracking and reprocess all sessions from scratch.
 - `--strategy <name>`: Override the distillation strategy for this run.
 
 Always normalize to the domain root before operating.
@@ -48,18 +49,18 @@ Under the domain root, expect:
 - `persona.md` – agent identity and behavioural settings (read `memory_review` setting).
 - `.claude/domain-toolkit/domain.yaml` – domain manifest.
 - `.context/sessions/` – session artifacts with YAML frontmatter:
-  - `*.md` session files with `status` frontmatter (`active`, `closed`, `distilled`).
+  - `*.md` session notes.
   - `*.draft.md` memory drafts (the agent's subjective view).
-  - `*.log` raw transcripts (rarely needed).
+  - `*.transcript.md` staged transcripts (extracted from CC JSONL by the stager).
 
 If any canonical file is missing, create a minimal placeholder and proceed, noting this in the proposals.
 
 ## Identifying sessions to process
 
-1. Scan `.context/sessions/` for all `.md` files (excluding `.draft.md` and `.log` files).
+1. Scan `.context/sessions/` for all `.md` files (excluding `.draft.md` and `.transcript.md` files).
 2. Parse YAML frontmatter from each file.
 3. Select files with `status: closed` (these are ready for distillation).
-4. If `--re-distill` was passed, first reset any `status: distilled` files to `status: closed`.
+4. If `--re-synth` was passed, first reset any `status: distilled` files to `status: closed`.
 5. If no `closed` sessions are found, report this and exit — nothing to distill.
 6. Sort selected files chronologically.
 
@@ -130,7 +131,7 @@ After successfully writing output:
 
 1. Update the frontmatter of each processed session file to `status: distilled` and add `distilled_at: <timestamp>`.
 2. Do **not** move, rename, or delete session files. They are permanent.
-3. Leave `.draft.md` and `.log` files untouched (they don't have lifecycle frontmatter).
+3. Leave `.draft.md` and `.transcript.md` files untouched (they don't have lifecycle frontmatter).
 
 ## Summary for the user
 

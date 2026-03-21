@@ -1,7 +1,18 @@
 # Git Operations
 
-**Status:** Draft — captured from working session 2026-03-18
-**Context:** Defines git conventions, workflow, and safety model for domain-toolkit managed domains. Consolidates decisions made across domain-model-semantics, storage-and-services, set-assembly, and domain-yaml-schema specs.
+**Status:** Superseded (2026-03-20)
+**Context:** Originally consolidated git conventions from multiple specs. Content has since been absorbed into more authoritative homes.
+
+> **Superseded.** All sections of this spec now live authoritatively elsewhere:
+>
+> | Section | Authoritative spec |
+> |---------|-------------------|
+> | Source of truth, sync model, Syncthing overlay | `storage-and-services.md` |
+> | Three-tier disposability, worktree lifecycle, branch considerations | `set-assembly-spec.md` |
+> | Custodial checklist, agentic git operations, git recovery | `set-assembly-spec.md` |
+> | Remote configuration, branching defaults | `domain-yaml-schema.md` |
+>
+> This file is retained for historical reference. Prefer the authoritative specs above.
 
 ---
 
@@ -29,9 +40,9 @@ The **bare repo on fluffy** (`fluffy.geekazoid.net:/mnt/user/git/<repo>.git/`) i
 - **Single writer at a time.** There is no realistic scenario where both the laptop and the server have concurrent uncommitted changes to the same repo.
 - **Working trees are custodial.** They exist to serve the bare repo. A stale working tree is a pull away from current. A corrupted working tree is a re-clone away from clean.
 
-### Domain-Toolkit Overlay
+### Knowledge Layer
 
-Syncthing syncs the domain-toolkit overlay (CLAUDE.md, AGENTS.md, .claude/, .context/) per domain across viewport nodes. This content is gitignored. See `storage-and-services.md` for details.
+Syncthing syncs `.context/` per domain across viewport nodes. This content is gitignored. Git-tracked files (CLAUDE.md, AGENTS.md, .claude/, persona.md) travel via git push/pull. See `storage-and-services.md` for details.
 
 Syncthing never syncs across branches. Branch content is a git concern.
 
@@ -132,6 +143,6 @@ If a working tree is lost, corrupted, or needs to be rebuilt:
 1. Read `domain.yaml` for `canonical_source` and `remotes`
 2. Clone from `canonical_source`
 3. Configure remotes per `domain.yaml`
-4. Syncthing will populate the overlay (CLAUDE.md, AGENTS.md, .claude/, .context/) once the directory exists
+4. Syncthing will populate `.context/` once the directory exists
 
-The domain's knowledge layer (sessions, memory, decisions) is preserved in Syncthing. The domain's versioned content is preserved in the bare repo. A full recovery requires only a clone and a Syncthing sync.
+The domain's knowledge layer (`.context/` — sessions, memory, decisions) is preserved in Syncthing. The domain's versioned content is preserved in the bare repo. A full recovery requires only a clone and a Syncthing sync.

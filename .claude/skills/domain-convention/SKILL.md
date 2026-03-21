@@ -8,14 +8,16 @@ You are working in a repo that implements the **domain-toolkit/domain orchestrat
 
 Authoritative specs live in:
 
-- `domain-convention.md` – canonical definition of what a domain is and how `.context/` is structured.
-- `orchestrator-architecture.md` – domain-toolkit/orchestrator commands and behaviors.
-- `distiller-spec.md` – how session artifacts are turned into canonical `MEMORY.md` and `DECISIONS.md`.
+- `file-convention.md` – file hierarchy, load order, persona placement, governance layers.
+- `domain-convention.md` – session file types and roles, MEMORY.md and DECISIONS.md structure.
+- `command-taxonomy.md` – all commands, concerns, and relationships.
+- `distiller-spec.md` – session lifecycle tracking, synthesis pipeline, review gate.
 
 When this skill is active and the user asks how to structure or maintain a domain:
 
-1. **Treat `domain-convention.md` as source-of-truth.**
-   - If there is any ambiguity between this skill text and that file, prefer `domain-convention.md`.
+1. **Treat `file-convention.md` as source-of-truth for file hierarchy and load order.**
+   - `domain-convention.md` remains authoritative for session file roles and MEMORY/DECISIONS structure.
+   - If there is any ambiguity between this skill text and those files, prefer the specs.
 2. **Explain the directory layout** for a domain:
    - Root-level `README.md` describes what the domain is (human-authored).
    - `.context/` contains:
@@ -26,7 +28,7 @@ When this skill is active and the user asks how to structure or maintain a domai
    - And at the domain root (tracked in git):
      - `.claude/domain-toolkit/domain.yaml` – machine-readable manifest and detection signal.
      - `persona.md` – agent identity, model tier, context map, behavioural settings.
-     - `sessions/` – timestamped session artifacts (`.md`, `.log`, `.draft.md`, `processed/`).
+   - `.context/sessions/` – timestamped session artifacts (`.md`, `.draft.md`, `.transcript.md`).
 3. **Emphasize write rules:**
    - Agents and skills **never write directly** to canonical `MEMORY.md` or `DECISIONS.md` during a session.
    - They write structured session notes and memory drafts into `.context/sessions/`.

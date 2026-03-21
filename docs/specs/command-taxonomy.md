@@ -1,6 +1,6 @@
 # Command Taxonomy
 
-**Status:** Draft — captured from working session 2026-03-18
+**Status:** Draft — captured 2026-03-18, revised 2026-03-20 (rename-domain rewrite, no-git grace)
 **Context:** Defines all domain-toolkit commands, their concerns, and relationships. Supersedes the command sections of `orchestrator-architecture.md` which predates the current design (sets, domain.yaml, file convention, Syncthing overlay).
 
 ---
@@ -42,7 +42,7 @@ Operates from the outside, objectively. The universal entry point for domain mai
 - Reads `domain.yaml` for git recovery context and validation
 - Updates derived fields in `domain.yaml` (kit_health, last_touched)
 - Writes/regenerates PROFILE.md, workspace file
-- Surfaces git state per custodial checklist (see `git-operations.md`)
+- Surfaces git state per custodial checklist (see `set-assembly-spec.md`)
 - Detects and surfaces AGENTS.md presence
 - Checks domain.yaml `repo` field against directory basename
 - Checks actual git remotes against domain.yaml `remotes`
@@ -133,16 +133,31 @@ group-domain --list               # list all sets
 
 ### `rename-domain`
 
-**Concern:** Domain identity — rename a domain safely.
+**Concern:** Domain identity — rename a domain's logical name.
 
-Renames a domain across all the places its name appears: domain.yaml `name` and `repo` fields, the registry entry, git remote references, any set memberships.
+A domain has two names: the **domain name** (`name` field — logical identity, registry key) and the **repo name** (`repo` field — directory basename, bare repo name, remote URLs). These often match but don't have to. `rename-domain` changes only the domain name. Storage reorganisation (directory, bare repo, remotes) is a separate, deferred concern.
+
+**Usage:**
+
+```
+rename-domain cashflow ledger              # rename the domain's logical name
+rename-domain cashflow ledger --no-touchy  # dry run: show what would change
+```
+
+**Execution order:**
+1. Update domain.yaml `name` field
+2. Commit (if git repo; skip gracefully if not)
+3. Rebuild registry via `add-domain --update`
+
+After a name-only rename where `name != repo`, the domain is in a workable but untidy state. `touch-domain` surfaces the mismatch. The user resolves it when ready.
 
 **Relationships:**
-- Updates domain.yaml
-- Triggers registry rebuild
-- May need to rename the directory, reconfigure git remotes, update bare repo
+- Reads registry for name resolution and domain lookup
+- Updates domain.yaml `name` field only
+- Triggers registry rebuild via `add-domain --update`
+- Does NOT touch repo field, directory, bare repo, remote URLs, prose references, or set names
 
-**Defined in:** Not yet implemented. Not yet fully specified.
+**Defined in:** `rename-spec.md` (specification), `rename-domain` SKILL.md (implementation).
 
 ---
 
@@ -164,7 +179,7 @@ distill-domain --all              # walk registry, distill all domains with pend
 - Reads current MEMORY.md and DECISIONS.md
 - Proposes updates (staged writes, never direct)
 - Human reviews and approves (per `memory_review` setting in persona.md)
-- Updates session frontmatter status to `distilled`
+- Appends synthesis marker to CC session JSONL (high-water mark for incremental processing)
 - Works with best available signal: agent-authored session notes as guaranteed minimum, richer sources (transcripts, gateway logs) when available
 
 **Defined in:** `distill-domain` SKILL.md (existing, distiller prompt not yet written). See `distiller-spec.md` for specification.
@@ -202,6 +217,10 @@ add-domain --new → touch-domain --new → add-domain (register)
 add-domain --update → scans all domains → rebuilds REGISTRY.yaml
 
 group-domain → modifies domain.yaml sets → triggers add-domain --update
+
+rename-domain <old> <new> → updates domain.yaml name field
+                           → commits (if git repo)
+                           → triggers add-domain --update
 
 open-domain <name> → resolves from registry
                    → single domain: opens viewport

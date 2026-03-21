@@ -37,7 +37,7 @@ These are the governance floor. Every agent entering any domain inherits this ba
 
 | File | Location | Tracked in git | Purpose |
 |------|----------|---------------|---------|
-| `domain.yaml` | `.claude/domain-toolkit/domain.yaml` | Yes | Machine-readable manifest. Registry metadata: name, type, sets, has_services, origin, description. **Detection signal** for managed domains — replaces agent.md's role as the domain identity marker. |
+| `domain.yaml` | `.claude/domain-toolkit/domain.yaml` | Yes | Machine-readable manifest. Registry metadata: name, repo, type, description, sets, canonical_source, remotes (see `domain-yaml-schema.md`). **Detection signal** for managed domains — replaces agent.md's role as the domain identity marker. |
 
 ### Persona Layer
 

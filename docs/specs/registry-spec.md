@@ -236,11 +236,17 @@ add-domain ~/sources/existing-project
 add-domain --update
 ```
 
-### Removing a Domain
+### Missing Domains
 
-Delete the domain's row from... wait — the registry is derived. You don't delete rows. If a domain.yaml disappears from disk, the next `add-domain --update` won't find it and it drops out of the registry.
+If a domain was previously in the registry but its path is unreachable on the next `add-domain --update` (unmounted drive, domain on another machine), it is **preserved** with `on_disk: false` added to its entry. The registry remembers domains even when their disk isn't mounted — the user may have multiple machines syncing a shared registry via Syncthing.
 
-To explicitly remove a domain without deleting its domain.yaml, add a field to domain.yaml:
+Domains with `on_disk: false` are still valid registry entries. They resolve by name, appear in sets, and show up in `overview`. Commands that need filesystem access (e.g., `touch-domain`, `open-domain`) will report that the path is unreachable.
+
+When the domain reappears on disk (drive mounted, machine reconnected), the next `add-domain --update` removes the `on_disk: false` flag and refreshes the entry from domain.yaml.
+
+### Excluding a Domain
+
+To explicitly exclude a domain from the registry without deleting its domain.yaml, add a field to domain.yaml:
 
 ```yaml
 registry: exclude
