@@ -15,12 +15,7 @@ Core specs (current):
 - `docs/specs/storage-and-services.md` – storage topology, containerised viewports, Syncthing overlay
 - `docs/specs/rename-spec.md` – rename identity model, scopes, execution order, boundaries
 - `docs/specs/distiller-spec.md` – distillation pipeline, isolation requirement, strategies, review gate
-
-Foundational specs (partially superseded — see notices in each file):
-
-- `docs/specs/orchestrator-architecture.md` – original architecture. Domain kit concept, concurrency, persistence.
-- `docs/specs/domain-convention.md` – original convention. Session files, MEMORY/DECISIONS structure.
-- `docs/specs/git-operations.md` – original git consolidation. Absorbed into set-assembly-spec.md and storage-and-services.md.
+- `docs/specs/sandbox-test-data.md` – demo sandbox specification
 
 ## Command taxonomy
 
