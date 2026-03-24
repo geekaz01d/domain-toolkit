@@ -1,0 +1,1107 @@
+#!/bin/bash
+# install-domain-toolkit — Install, validate, or remove the domain-toolkit runtime.
+#
+# Usage:
+#   install-domain-toolkit [--status | --install | --link | --uninstall] [--cron]
+#
+# Defaults to --status if no mode flag is given.
+# Must be run from within the domain-toolkit repo checkout.
+
+set -euo pipefail
+
+# --- Constants ---
+INSTALL_TARGET="$HOME/.claude/domain-toolkit"
+WRAPPER_DIR="$HOME/.claude/hooks"
+SETTINGS_FILE="$HOME/.claude/settings.json"
+INSTALL_MARKER="$INSTALL_TARGET/.install-mode"
+
+# Bundle manifest: source paths relative to repo .claude/domain-toolkit/
+BUNDLE_FILES=(
+  "hooks/session-start.sh"
+  "hooks/session-end.sh"
+  "bin/open-domain"
+  "bin/stage-transcripts"
+  "bin/install-domain-toolkit"
+  "cron/distill.cron"
+  "cron/stage-transcripts.cron"
+  "domain.yaml"
+  "REGISTRY.example.yaml"
+)
+
+# Which bundle files need the execute bit
+EXECUTABLE_FILES=(
+  "hooks/session-start.sh"
+  "hooks/session-end.sh"
+  "bin/open-domain"
+  "bin/stage-transcripts"
+  "bin/install-domain-toolkit"
+)
+
+# Wrapper definitions: name -> target
+WRAPPER_TARGETS=(
+  "session-start.sh:hooks/session-start.sh"
+  "session-end.sh:hooks/session-end.sh"
+)
+
+# PATH integration
+BASHRC="$HOME/.bashrc"
+PATH_LINE='export PATH="$HOME/.claude/domain-toolkit/bin:$PATH"'
+PATH_COMMENT="# domain-toolkit runtime"
+
+# Files that are never touched by install or uninstall
+PRESERVED_PATTERNS=(
+  "REGISTRY.yaml"
+  "*.log"
+  ".harvest-log"
+  ".staged-sessions"
+)
+
+# --- Output helpers ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
+warn() { echo -e "  ${YELLOW}⚠${NC} $1"; }
+fail() { echo -e "  ${RED}✗${NC} $1"; }
+info() { echo -e "  $1"; }
+
+# --- Usage ---
+usage() {
+  cat <<'EOF'
+Usage: install-domain-toolkit [--status | --install | --link | --uninstall] [--cron]
+
+Manage the domain-toolkit runtime installation on this machine.
+
+Modes:
+  --status      Show current installation state (default)
+  --install     Full copy deployment from repo
+  --link        Symlink deployment (recommended for developers)
+  --uninstall   Clean removal of runtime files
+
+Modifiers:
+  --cron        Manage crontab entries (opt-in, composable)
+  -h, --help    Show this help
+
+Run from within the domain-toolkit repo checkout.
+EOF
+  exit 0
+}
+
+# --- Argument parsing ---
+MODE="status"
+CRON=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --status)    MODE="status" ;;
+    --install)   MODE="install" ;;
+    --link)      MODE="link" ;;
+    --uninstall) MODE="uninstall" ;;
+    --cron)      CRON=true ;;
+    -h|--help|--usage) usage ;;
+    *)           echo "Unknown option: $arg" >&2; exit 1 ;;
+  esac
+done
+
+# --- Repo detection ---
+# Walk up from cwd to find the repo root (where .claude/domain-toolkit/domain.yaml lives)
+find_repo_root() {
+  local dir="$PWD"
+  while [ "$dir" != "/" ]; do
+    local candidate="$dir/.claude/domain-toolkit/domain.yaml"
+    if [ -f "$candidate" ] && [ ! -L "$candidate" ] && [ -d "$dir/.git" ]; then
+      # Verify it's the domain-toolkit repo (not just any managed domain)
+      if python3 -c "
+import yaml, sys
+with open('$dir/.claude/domain-toolkit/domain.yaml') as f:
+    d = yaml.safe_load(f)
+    sys.exit(0 if d.get('name') == 'domain-toolkit' else 1)
+" 2>/dev/null; then
+        echo "$dir"
+        return 0
+      fi
+    fi
+    dir="$(dirname "$dir")"
+  done
+  return 1
+}
+
+REPO_ROOT="$(find_repo_root)" || {
+  echo "Error: Not inside the domain-toolkit repo." >&2
+  echo "Run this from within the domain-toolkit repo checkout." >&2
+  exit 1
+}
+
+BUNDLE_ROOT="$REPO_ROOT/.claude/domain-toolkit"
+
+# --- Environment pre-checks ---
+check_environment() {
+  local errors=0
+
+  # Bundle integrity
+  for f in "${BUNDLE_FILES[@]}"; do
+    if [ ! -f "$BUNDLE_ROOT/$f" ]; then
+      fail "Bundle file missing: $f"
+      errors=$((errors + 1))
+    fi
+  done
+
+  if [ "$errors" -gt 0 ]; then
+    echo "Error: Bundle incomplete ($errors files missing). Check repo state." >&2
+    exit 1
+  fi
+
+  # Python3
+  if command -v python3 &>/dev/null; then
+    local pyver
+    pyver="$(python3 --version 2>&1 | awk '{print $2}')"
+    ok "python3 available ($pyver)"
+  else
+    warn "python3 not found — hooks and stage-transcripts require Python 3"
+  fi
+
+  # Claude CLI
+  if command -v claude &>/dev/null; then
+    ok "claude CLI available ($(command -v claude))"
+  else
+    warn "claude CLI not found — hooks won't fire until Claude Code is installed"
+  fi
+
+  # Working tree state (only for install/link modes)
+  if [ "$MODE" = "install" ] || [ "$MODE" = "link" ]; then
+    if command -v git &>/dev/null && [ -d "$REPO_ROOT/.git" ]; then
+      local changed
+      changed="$(cd "$REPO_ROOT" && git diff --name-only -- .claude/domain-toolkit/ 2>/dev/null || true)"
+      if [ -n "$changed" ]; then
+        warn "Uncommitted changes to bundle files (installed copy will reflect working tree)"
+      fi
+    fi
+  fi
+}
+
+# --- Hash comparison ---
+file_hash() {
+  sha256sum "$1" 2>/dev/null | awk '{print $1}'
+}
+
+# --- Read .install-mode ---
+read_install_mode() {
+  if [ -f "$INSTALL_MARKER" ]; then
+    python3 -c "
+import yaml, sys, json
+with open('$INSTALL_MARKER') as f:
+    d = yaml.safe_load(f)
+    # Convert non-serializable values (e.g. datetime) to strings
+    json.dump({k: str(v) for k, v in d.items()}, sys.stdout)
+" 2>/dev/null || echo '{}'
+  else
+    echo '{}'
+  fi
+}
+
+# --- Check if a file is in the preserved list ---
+is_preserved() {
+  local filename="$1"
+  local basename
+  basename="$(basename "$filename")"
+  for pattern in "${PRESERVED_PATTERNS[@]}"; do
+    case "$basename" in
+      $pattern) return 0 ;;
+    esac
+  done
+  return 1
+}
+
+# --- settings.json manipulation ---
+# Uses python3 for JSON since jq is not guaranteed
+
+settings_has_hook() {
+  local event="$1"  # SessionStart or SessionEnd
+  local cmd_path="$2"
+  python3 -c "
+import json, sys
+try:
+    with open('$SETTINGS_FILE') as f:
+        settings = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    sys.exit(1)
+hooks = settings.get('hooks', {}).get('$event', [])
+for matcher in hooks:
+    for hook in matcher.get('hooks', []):
+        if hook.get('command', '') == '$cmd_path':
+            sys.exit(0)
+sys.exit(1)
+" 2>/dev/null
+}
+
+settings_add_hooks() {
+  python3 -c "
+import json, os, sys
+
+settings_path = '$SETTINGS_FILE'
+os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+
+# Read existing or start fresh
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except FileNotFoundError:
+    settings = {}
+except json.JSONDecodeError:
+    print('Error: $SETTINGS_FILE is not valid JSON. Fix it manually.', file=sys.stderr)
+    sys.exit(1)
+
+if 'hooks' not in settings:
+    settings['hooks'] = {}
+
+# Define the entries we need
+needed = {
+    'SessionStart': {
+        'matcher': '',
+        'hooks': [{
+            'type': 'command',
+            'command': '\$HOME/.claude/hooks/session-start.sh',
+            'timeout': 10
+        }]
+    },
+    'SessionEnd': {
+        'matcher': '',
+        'hooks': [{
+            'type': 'command',
+            'command': '\$HOME/.claude/hooks/session-end.sh',
+            'async': True
+        }]
+    }
+}
+
+import os, re
+home = os.path.expanduser('~')
+
+def is_our_hook(cmd):
+    '''Match any form of our hook command (quoted, unquoted, expanded).'''
+    normalized = cmd.replace('\"', '').replace('\\\\', '')
+    normalized = normalized.replace('\$HOME', home).replace('$HOME', home)
+    return '/.claude/hooks/session-' in normalized
+
+for event, entry in needed.items():
+    if event not in settings['hooks']:
+        settings['hooks'][event] = [entry]
+        continue
+
+    # Remove all existing domain-toolkit hook entries (any form)
+    cleaned = []
+    for matcher in settings['hooks'][event]:
+        remaining = [h for h in matcher.get('hooks', []) if not is_our_hook(h.get('command', ''))]
+        if remaining:
+            matcher['hooks'] = remaining
+            cleaned.append(matcher)
+    settings['hooks'][event] = cleaned
+
+    # Add the canonical entry
+    settings['hooks'][event].append(entry)
+
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2)
+    f.write('\n')
+" 2>/dev/null
+}
+
+settings_remove_hooks() {
+  python3 -c "
+import json, sys
+
+settings_path = '$SETTINGS_FILE'
+try:
+    with open(settings_path) as f:
+        settings = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    sys.exit(0)
+
+if 'hooks' not in settings:
+    sys.exit(0)
+
+import os, re
+home = os.path.expanduser('~')
+
+def is_our_hook(cmd):
+    '''Match any form of our hook command (quoted, unquoted, expanded).'''
+    normalized = cmd.replace('\"', '').replace('\\\\', '')
+    normalized = normalized.replace('\$HOME', home).replace('$HOME', home)
+    return '/.claude/hooks/session-' in normalized
+
+for event in ['SessionStart', 'SessionEnd']:
+    if event not in settings['hooks']:
+        continue
+
+    new_matchers = []
+    for matcher in settings['hooks'][event]:
+        new_hooks = [h for h in matcher.get('hooks', []) if not is_our_hook(h.get('command', ''))]
+        if new_hooks:
+            matcher['hooks'] = new_hooks
+            new_matchers.append(matcher)
+    if new_matchers:
+        settings['hooks'][event] = new_matchers
+    else:
+        del settings['hooks'][event]
+
+if not settings['hooks']:
+    del settings['hooks']
+
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2)
+    f.write('\n')
+" 2>/dev/null
+}
+
+# --- PATH management ---
+path_is_configured() {
+  grep -qF "$PATH_LINE" "$BASHRC" 2>/dev/null
+}
+
+path_add() {
+  if path_is_configured; then
+    ok "PATH entry already present in ~/.bashrc"
+    return
+  fi
+  echo "" >> "$BASHRC"
+  echo "$PATH_COMMENT" >> "$BASHRC"
+  echo "$PATH_LINE" >> "$BASHRC"
+  ok "PATH entry added to ~/.bashrc"
+}
+
+path_remove() {
+  if [ ! -f "$BASHRC" ]; then
+    return
+  fi
+  if ! path_is_configured; then
+    return
+  fi
+  # Remove the PATH line and its comment (if on the preceding line)
+  python3 -c "
+import sys
+lines = open('$BASHRC').readlines()
+out = []
+skip_next = False
+for i, line in enumerate(lines):
+    if skip_next:
+        skip_next = False
+        continue
+    if line.rstrip() == '$PATH_LINE':
+        # Also remove preceding comment line if it matches
+        if out and out[-1].rstrip() == '$PATH_COMMENT':
+            out.pop()
+        # Also remove preceding blank line if present
+        if out and out[-1].strip() == '':
+            out.pop()
+        continue
+    out.append(line)
+with open('$BASHRC', 'w') as f:
+    f.writelines(out)
+" 2>/dev/null
+  ok "PATH entry removed from ~/.bashrc"
+}
+
+# --- Status mode ---
+do_status() {
+  echo -e "${BOLD}domain-toolkit runtime status${NC}"
+  echo "=============================="
+  echo ""
+
+  # Read install mode
+  local mode_json
+  mode_json="$(read_install_mode)"
+  local inst_mode inst_source inst_time
+  inst_mode="$(echo "$mode_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('mode',''))" 2>/dev/null || true)"
+  inst_source="$(echo "$mode_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('source',''))" 2>/dev/null || true)"
+  inst_time="$(echo "$mode_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('installed',''))" 2>/dev/null || true)"
+
+  if [ -z "$inst_mode" ]; then
+    # Check if there are any bundle files anyway (partial install)
+    local found_any=false
+    for f in "${BUNDLE_FILES[@]}"; do
+      if [ -e "$INSTALL_TARGET/$f" ]; then
+        found_any=true
+        break
+      fi
+    done
+    if ! $found_any; then
+      echo "Not installed."
+      echo ""
+      echo "Install with:"
+      echo "  $REPO_ROOT/.claude/domain-toolkit/bin/install-domain-toolkit --link"
+      return
+    fi
+    inst_mode="unknown"
+  fi
+
+  echo "Mode:       $inst_mode"
+  [ -n "$inst_source" ] && echo "Source:     $inst_source"
+  [ -n "$inst_time" ] && echo "Installed:  $inst_time"
+  echo ""
+
+  # Runtime files
+  local all_ok=true
+  echo -e "${BOLD}Runtime files${NC} (~/.claude/domain-toolkit/):"
+  for f in "${BUNDLE_FILES[@]}"; do
+    local target="$INSTALL_TARGET/$f"
+    local source="$BUNDLE_ROOT/$f"
+    if [ ! -e "$target" ] && [ ! -L "$target" ]; then
+      fail "$f  MISSING"
+      all_ok=false
+    elif [ -L "$target" ]; then
+      local link_target
+      link_target="$(readlink "$target")"
+      if [ -e "$target" ]; then
+        ok "$f  linked → $link_target"
+      else
+        fail "$f  dangling symlink → $link_target"
+        all_ok=false
+      fi
+    else
+      # Real file — compare hash
+      local h_installed h_repo
+      h_installed="$(file_hash "$target")"
+      h_repo="$(file_hash "$source")"
+      if [ "$h_installed" = "$h_repo" ]; then
+        ok "$f  installed, current"
+      else
+        warn "$f  installed, outdated (repo is newer)"
+        all_ok=false
+      fi
+    fi
+  done
+  echo ""
+
+  # Hook wrappers
+  echo -e "${BOLD}Hook wrappers${NC} (~/.claude/hooks/):"
+  for pair in "${WRAPPER_TARGETS[@]}"; do
+    local wrapper_name="${pair%%:*}"
+    local hook_rel="${pair##*:}"
+    local wrapper_path="$WRAPPER_DIR/$wrapper_name"
+    local expected_target="$INSTALL_TARGET/$hook_rel"
+
+    if [ ! -f "$wrapper_path" ]; then
+      fail "$wrapper_name  MISSING"
+      all_ok=false
+    elif [ ! -x "$wrapper_path" ]; then
+      warn "$wrapper_name  present but not executable"
+      all_ok=false
+    else
+      # Check it delegates correctly
+      if grep -q "exec.*domain-toolkit/hooks/$wrapper_name" "$wrapper_path" 2>/dev/null; then
+        ok "$wrapper_name  present, executable, delegates correctly"
+      else
+        warn "$wrapper_name  present but delegation content unexpected"
+        all_ok=false
+      fi
+    fi
+  done
+  echo ""
+
+  # Hook registration
+  echo -e "${BOLD}Hook registration${NC} (~/.claude/settings.json):"
+  if [ ! -f "$SETTINGS_FILE" ]; then
+    fail "settings.json  MISSING"
+    all_ok=false
+  else
+    local cmd_start='"$HOME"/.claude/hooks/session-start.sh'
+    local cmd_end='"$HOME"/.claude/hooks/session-end.sh'
+    if settings_has_hook "SessionStart" "$cmd_start"; then
+      ok "SessionStart  registered"
+    else
+      fail "SessionStart  not registered"
+      all_ok=false
+    fi
+    if settings_has_hook "SessionEnd" "$cmd_end"; then
+      ok "SessionEnd  registered"
+    else
+      fail "SessionEnd  not registered"
+      all_ok=false
+    fi
+  fi
+  echo ""
+
+  # PATH
+  echo -e "${BOLD}PATH${NC} (~/.bashrc):"
+  if path_is_configured; then
+    ok "domain-toolkit bin directory in PATH"
+  else
+    fail "domain-toolkit bin directory not in PATH"
+    all_ok=false
+  fi
+  echo ""
+
+  # User data
+  echo -e "${BOLD}User data${NC} (preserved across install/uninstall):"
+  if [ -f "$INSTALL_TARGET/REGISTRY.yaml" ]; then
+    local domain_count
+    domain_count="$(python3 -c "
+import yaml
+with open('$INSTALL_TARGET/REGISTRY.yaml') as f:
+    d = yaml.safe_load(f)
+    print(len(d.get('domains', {})))
+" 2>/dev/null || echo "?")"
+    info "REGISTRY.yaml  present ($domain_count domains)"
+  else
+    info "REGISTRY.yaml  not present"
+  fi
+  for logfile in "$INSTALL_TARGET"/*.log "$INSTALL_TARGET"/.harvest-log "$INSTALL_TARGET"/.staged-sessions; do
+    if [ -f "$logfile" ]; then
+      local size
+      size="$(du -h "$logfile" | awk '{print $1}')"
+      info "$(basename "$logfile")  present ($size)"
+    fi
+  done
+  echo ""
+
+  # Skills
+  echo -e "${BOLD}Skills${NC} (available in domain-toolkit repo):"
+  if [ -d "$REPO_ROOT/.claude/skills" ]; then
+    for skill_dir in "$REPO_ROOT/.claude/skills"/*/; do
+      if [ -f "${skill_dir}SKILL.md" ]; then
+        local skill_name
+        skill_name="$(basename "$skill_dir")"
+        local rel_path
+        rel_path=".claude/skills/$skill_name/SKILL.md"
+        info "$skill_name  $rel_path"
+      fi
+    done
+  fi
+  echo ""
+
+  # Cron
+  echo -e "${BOLD}Cron${NC}:"
+  local cron_installed=false
+  if command -v crontab &>/dev/null; then
+    local current_crontab
+    current_crontab="$(crontab -l 2>/dev/null || true)"
+    if echo "$current_crontab" | grep -q "stage-transcripts" 2>/dev/null; then
+      ok "stage-transcripts  installed in crontab"
+      cron_installed=true
+    else
+      info "stage-transcripts  not installed (template available)"
+    fi
+    if echo "$current_crontab" | grep -q "distill-pending\|distill" 2>/dev/null; then
+      ok "distill  installed in crontab"
+      cron_installed=true
+    else
+      info "distill  not installed (template available)"
+    fi
+  else
+    info "crontab  not available"
+  fi
+  echo ""
+
+  # Environment
+  echo -e "${BOLD}Environment${NC}:"
+  if command -v claude &>/dev/null; then
+    ok "claude CLI  $(command -v claude)"
+  else
+    warn "claude CLI  not found"
+  fi
+  if command -v python3 &>/dev/null; then
+    ok "python3  $(command -v python3) ($(python3 --version 2>&1 | awk '{print $2}'))"
+  else
+    warn "python3  not found"
+  fi
+  echo ""
+
+  # Verdict
+  echo -n "Verdict: "
+  if [ "$inst_mode" = "link" ]; then
+    if $all_ok; then
+      echo -e "${GREEN}Installed (link mode), healthy${NC}"
+    else
+      echo -e "${RED}Installed (link mode), broken${NC}"
+    fi
+  elif [ "$inst_mode" = "copy" ]; then
+    if $all_ok; then
+      echo -e "${GREEN}Installed (copy mode), current${NC}"
+    else
+      echo -e "${YELLOW}Installed (copy mode), outdated or broken${NC}"
+    fi
+  elif [ "$inst_mode" = "unknown" ]; then
+    echo -e "${YELLOW}Partial install (missing .install-mode marker)${NC}"
+  else
+    echo -e "${RED}Not installed${NC}"
+  fi
+}
+
+# --- Install / Link mode ---
+do_install() {
+  local mode="$1"  # "copy" or "link"
+
+  echo -e "${BOLD}domain-toolkit runtime installer${NC}"
+  echo ""
+
+  # Guard against self-referencing install (BUNDLE_ROOT == INSTALL_TARGET)
+  local resolved_bundle resolved_target
+  resolved_bundle="$(readlink -f "$BUNDLE_ROOT")"
+  resolved_target="$(readlink -f "$INSTALL_TARGET")"
+  if [ "$resolved_bundle" = "$resolved_target" ]; then
+    echo "Error: Source and target are the same directory:" >&2
+    echo "  $BUNDLE_ROOT" >&2
+    echo "Run this from within the domain-toolkit repo checkout, not from \$HOME." >&2
+    exit 1
+  fi
+
+  # Check current state
+  local mode_json
+  mode_json="$(read_install_mode)"
+  local current_mode
+  current_mode="$(echo "$mode_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('mode',''))" 2>/dev/null || true)"
+
+  local switching=false
+  if [ -n "$current_mode" ] && [ "$current_mode" != "$mode" ]; then
+    switching=true
+    echo -e "${YELLOW}Switching from $current_mode mode to $mode mode.${NC}"
+    echo ""
+  fi
+
+  # Present the plan
+  echo "Installation plan ($mode mode):"
+  echo ""
+
+  if [ "$mode" = "link" ]; then
+    echo "  Symlinks (→ repo checkout):"
+  else
+    echo "  Files to copy:"
+  fi
+  for f in "${BUNDLE_FILES[@]}"; do
+    echo "    $INSTALL_TARGET/$f"
+  done
+  echo ""
+
+  echo "  Wrappers to generate:"
+  for pair in "${WRAPPER_TARGETS[@]}"; do
+    local wrapper_name="${pair%%:*}"
+    echo "    $WRAPPER_DIR/$wrapper_name"
+  done
+  echo ""
+
+  echo "  settings.json hook registration"
+  echo ""
+
+  if path_is_configured; then
+    echo "  PATH: already configured in ~/.bashrc"
+  else
+    echo "  PATH: will add ~/.claude/domain-toolkit/bin to ~/.bashrc"
+  fi
+  echo ""
+
+  if [ -f "$INSTALL_TARGET/REGISTRY.yaml" ]; then
+    echo "  Preserved: REGISTRY.yaml (user data, will not be touched)"
+  else
+    echo "  REGISTRY.yaml will be seeded from template"
+  fi
+  echo ""
+
+  # Ask for confirmation
+  read -rp "Proceed? [y/N] " confirm
+  if [[ ! "$confirm" =~ ^[Yy] ]]; then
+    echo "Aborted."
+    exit 0
+  fi
+  echo ""
+
+  # Execute
+  echo "Installing..."
+
+  # Create directories
+  mkdir -p "$INSTALL_TARGET/hooks" "$INSTALL_TARGET/bin" "$INSTALL_TARGET/cron" "$WRAPPER_DIR"
+
+  # If switching modes, remove old files first
+  if $switching; then
+    for f in "${BUNDLE_FILES[@]}"; do
+      rm -f "$INSTALL_TARGET/$f"
+    done
+  fi
+
+  # Deploy bundle files
+  for f in "${BUNDLE_FILES[@]}"; do
+    local source="$BUNDLE_ROOT/$f"
+    local target="$INSTALL_TARGET/$f"
+    if [ "$mode" = "link" ]; then
+      ln -sf "$source" "$target"
+    else
+      cp "$source" "$target"
+    fi
+
+    # Set executable bit where needed
+    for exe in "${EXECUTABLE_FILES[@]}"; do
+      if [ "$f" = "$exe" ]; then
+        if [ "$mode" = "copy" ]; then
+          chmod +x "$target"
+        fi
+        # Symlinks inherit source permissions
+        break
+      fi
+    done
+  done
+  ok "Bundle files deployed ($mode mode)"
+
+  # Seed REGISTRY.yaml if absent
+  if [ ! -f "$INSTALL_TARGET/REGISTRY.yaml" ]; then
+    cp "$BUNDLE_ROOT/REGISTRY.example.yaml" "$INSTALL_TARGET/REGISTRY.yaml"
+    ok "REGISTRY.yaml seeded from template"
+  else
+    ok "REGISTRY.yaml preserved (existing)"
+  fi
+
+  # Write .install-mode
+  local timestamp
+  timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  cat > "$INSTALL_MARKER" <<EOF
+mode: $mode
+source: $REPO_ROOT
+installed: $timestamp
+EOF
+  ok "Install marker written"
+
+  # Generate wrappers
+  for pair in "${WRAPPER_TARGETS[@]}"; do
+    local wrapper_name="${pair%%:*}"
+    local wrapper_path="$WRAPPER_DIR/$wrapper_name"
+    cat > "$wrapper_path" <<'WRAPPER'
+#!/bin/bash
+WRAPPER
+    echo "exec \"\$HOME/.claude/domain-toolkit/hooks/$wrapper_name\"" >> "$wrapper_path"
+    chmod +x "$wrapper_path"
+  done
+  ok "Hook wrappers generated"
+
+  # Merge settings.json
+  settings_add_hooks
+  ok "settings.json hook registration merged"
+
+  # Add to PATH
+  path_add
+
+  echo ""
+
+  # Post-install validation
+  echo "Validating..."
+  local valid=true
+
+  for f in "${BUNDLE_FILES[@]}"; do
+    local target="$INSTALL_TARGET/$f"
+    if [ ! -e "$target" ]; then
+      fail "Missing: $target"
+      valid=false
+    fi
+    if [ "$mode" = "link" ] && [ ! -L "$target" ]; then
+      warn "Expected symlink but got regular file: $target"
+    fi
+  done
+
+  for exe in "${EXECUTABLE_FILES[@]}"; do
+    local target="$INSTALL_TARGET/$exe"
+    if [ -e "$target" ] && [ ! -x "$target" ]; then
+      fail "Not executable: $target"
+      valid=false
+    fi
+  done
+
+  for pair in "${WRAPPER_TARGETS[@]}"; do
+    local wrapper_name="${pair%%:*}"
+    local wrapper_path="$WRAPPER_DIR/$wrapper_name"
+    if [ ! -x "$wrapper_path" ]; then
+      fail "Wrapper not executable: $wrapper_path"
+      valid=false
+    fi
+  done
+
+  # Validate settings.json
+  if python3 -c "import json; json.load(open('$SETTINGS_FILE'))" 2>/dev/null; then
+    ok "settings.json is valid JSON"
+  else
+    fail "settings.json is not valid JSON"
+    valid=false
+  fi
+
+  if $valid; then
+    echo ""
+    echo -e "${GREEN}Installation complete ($mode mode).${NC}"
+    echo ""
+    echo "Next steps:"
+    echo "  Register domains:  add-domain --scan"
+    echo "  Validate a domain: touch-domain <path>"
+    echo "  Check status:      install-domain-toolkit --status"
+  else
+    echo ""
+    echo -e "${YELLOW}Installation completed with warnings. Run --status for details.${NC}"
+  fi
+}
+
+# --- Uninstall mode ---
+do_uninstall() {
+  echo -e "${BOLD}domain-toolkit runtime uninstaller${NC}"
+  echo ""
+
+  # Check what's installed
+  local mode_json
+  mode_json="$(read_install_mode)"
+  local current_mode
+  current_mode="$(echo "$mode_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('mode',''))" 2>/dev/null || true)"
+
+  # Check if there's anything to uninstall
+  local found_any=false
+  for f in "${BUNDLE_FILES[@]}"; do
+    if [ -e "$INSTALL_TARGET/$f" ] || [ -L "$INSTALL_TARGET/$f" ]; then
+      found_any=true
+      break
+    fi
+  done
+  if [ -e "$INSTALL_MARKER" ]; then found_any=true; fi
+  for pair in "${WRAPPER_TARGETS[@]}"; do
+    local wrapper_name="${pair%%:*}"
+    if [ -e "$WRAPPER_DIR/$wrapper_name" ]; then found_any=true; break; fi
+  done
+
+  if ! $found_any; then
+    echo "Nothing to uninstall."
+    return
+  fi
+
+  # Present the plan
+  echo "Removal plan:"
+  echo ""
+
+  echo "  Files to remove:"
+  for f in "${BUNDLE_FILES[@]}"; do
+    if [ -e "$INSTALL_TARGET/$f" ] || [ -L "$INSTALL_TARGET/$f" ]; then
+      echo "    $INSTALL_TARGET/$f"
+    fi
+  done
+  if [ -e "$INSTALL_MARKER" ]; then
+    echo "    $INSTALL_MARKER"
+  fi
+  echo ""
+
+  echo "  Wrappers to remove:"
+  for pair in "${WRAPPER_TARGETS[@]}"; do
+    local wrapper_name="${pair%%:*}"
+    if [ -e "$WRAPPER_DIR/$wrapper_name" ]; then
+      echo "    $WRAPPER_DIR/$wrapper_name"
+    fi
+  done
+  echo ""
+
+  echo "  settings.json: remove domain-toolkit hook entries"
+  echo ""
+
+  if path_is_configured; then
+    echo "  PATH: will remove domain-toolkit entry from ~/.bashrc"
+    echo ""
+  fi
+
+  # List preserved files
+  local has_preserved=false
+  for f in "$INSTALL_TARGET"/*; do
+    [ -e "$f" ] || continue
+    if is_preserved "$f"; then
+      if ! $has_preserved; then
+        echo "  Preserved (will NOT be removed):"
+        has_preserved=true
+      fi
+      echo "    $f"
+    fi
+  done
+  for f in "$INSTALL_TARGET"/.*; do
+    [ -e "$f" ] || continue
+    local base
+    base="$(basename "$f")"
+    [ "$base" = "." ] || [ "$base" = ".." ] || [ "$base" = ".install-mode" ] && continue
+    if is_preserved "$f"; then
+      if ! $has_preserved; then
+        echo "  Preserved (will NOT be removed):"
+        has_preserved=true
+      fi
+      echo "    $f"
+    fi
+  done
+  if $has_preserved; then echo ""; fi
+
+  if $CRON; then
+    echo "  Crontab: remove domain-toolkit entries"
+    echo ""
+  fi
+
+  # Ask for confirmation
+  read -rp "Proceed with uninstall? [y/N] " confirm
+  if [[ ! "$confirm" =~ ^[Yy] ]]; then
+    echo "Aborted."
+    exit 0
+  fi
+  echo ""
+
+  echo "Uninstalling..."
+
+  # Remove bundle files
+  for f in "${BUNDLE_FILES[@]}"; do
+    rm -f "$INSTALL_TARGET/$f"
+  done
+  rm -f "$INSTALL_MARKER"
+  ok "Bundle files removed"
+
+  # Remove empty directories
+  for dir in hooks bin cron; do
+    rmdir "$INSTALL_TARGET/$dir" 2>/dev/null || true
+  done
+
+  # Remove wrappers
+  for pair in "${WRAPPER_TARGETS[@]}"; do
+    local wrapper_name="${pair%%:*}"
+    rm -f "$WRAPPER_DIR/$wrapper_name"
+  done
+  ok "Hook wrappers removed"
+
+  # Remove settings.json entries
+  settings_remove_hooks
+  ok "settings.json hook entries removed"
+
+  # Remove PATH entry
+  path_remove
+
+  # Remove cron entries if requested
+  if $CRON; then
+    do_cron_uninstall
+  fi
+
+  # Check if install target is empty (except preserved files)
+  local remaining=0
+  for f in "$INSTALL_TARGET"/* "$INSTALL_TARGET"/.*; do
+    [ -e "$f" ] || continue
+    local base
+    base="$(basename "$f")"
+    [ "$base" = "." ] || [ "$base" = ".." ] && continue
+    remaining=$((remaining + 1))
+  done
+  if [ "$remaining" -eq 0 ]; then
+    rmdir "$INSTALL_TARGET" 2>/dev/null || true
+    ok "Install directory removed (was empty)"
+  else
+    info "Install directory preserved ($remaining files remain: user data/logs)"
+  fi
+
+  echo ""
+  echo -e "${GREEN}Uninstall complete.${NC}"
+}
+
+# --- Cron management ---
+do_cron_install() {
+  echo ""
+  echo -e "${BOLD}Cron installation${NC}:"
+  echo ""
+
+  local cron_dir="$INSTALL_TARGET/cron"
+  if [ ! -d "$cron_dir" ]; then
+    cron_dir="$BUNDLE_ROOT/cron"
+  fi
+
+  local toolkit_root="$INSTALL_TARGET"
+  local entries=()
+
+  for template in "$cron_dir"/*.cron; do
+    [ -f "$template" ] || continue
+    local rendered
+    rendered="$(sed "s|__TOOLKIT_ROOT__|$toolkit_root|g; s|__HOME__|$HOME|g" "$template")"
+    echo "  Template: $(basename "$template")"
+    echo "  Entry:    $(echo "$rendered" | grep -v '^#' | grep -v '^$' | head -1)"
+    entries+=("$rendered")
+    echo ""
+  done
+
+  if [ ${#entries[@]} -eq 0 ]; then
+    echo "No cron templates found."
+    return
+  fi
+
+  # Check existing crontab
+  local current
+  current="$(crontab -l 2>/dev/null || true)"
+
+  read -rp "Add these cron entries? [y/N] " confirm
+  if [[ ! "$confirm" =~ ^[Yy] ]]; then
+    echo "Skipped."
+    return
+  fi
+
+  local new_crontab="$current"
+  for entry in "${entries[@]}"; do
+    local cmd_line
+    cmd_line="$(echo "$entry" | grep -v '^#' | grep -v '^$' | head -1)"
+    if echo "$current" | grep -qF "$cmd_line" 2>/dev/null; then
+      info "Already present: $cmd_line"
+    else
+      new_crontab="$new_crontab
+$entry"
+    fi
+  done
+
+  echo "$new_crontab" | crontab -
+  ok "Cron entries installed"
+}
+
+do_cron_uninstall() {
+  if ! command -v crontab &>/dev/null; then
+    return
+  fi
+
+  local current
+  current="$(crontab -l 2>/dev/null || true)"
+
+  if [ -z "$current" ]; then
+    return
+  fi
+
+  # Remove lines containing domain-toolkit paths
+  local new_crontab
+  new_crontab="$(echo "$current" | grep -v "domain-toolkit" || true)"
+
+  if [ "$current" != "$new_crontab" ]; then
+    echo "$new_crontab" | crontab -
+    ok "Cron entries removed"
+  fi
+}
+
+# --- Main ---
+
+echo ""
+
+# Environment checks (lighter for status mode)
+if [ "$MODE" != "status" ]; then
+  check_environment
+  echo ""
+fi
+
+# Mode dispatch
+case "$MODE" in
+  status)
+    do_status
+    if $CRON; then
+      echo ""
+      echo "(Cron status is included in the report above.)"
+    fi
+    ;;
+  install)
+    do_install "copy"
+    if $CRON; then
+      do_cron_install
+    fi
+    ;;
+  link)
+    do_install "link"
+    if $CRON; then
+      do_cron_install
+    fi
+    ;;
+  uninstall)
+    do_uninstall
+    ;;
+esac
+
+echo ""

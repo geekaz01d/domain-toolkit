@@ -161,6 +161,36 @@ After a name-only rename where `name != repo`, the domain is in a workable but u
 
 ---
 
+### `install-domain-toolkit`
+
+**Concern:** Runtime lifecycle — deploy, validate, or remove the domain-toolkit runtime on a machine.
+
+Sets up the machine-level infrastructure: hooks in `~/.claude/domain-toolkit/`, wrappers in `~/.claude/hooks/`, and registrations in `~/.claude/settings.json`. This is separate from domain-level management (touch-domain). Dual implementation: shell script (entrypoint for new users) + Claude Code skill.
+
+**Modes:**
+
+| Mode | Flag | What it does |
+|------|------|-------------|
+| Status | `--status` (default) | Transparent, detailed report of everything installed |
+| Install | `--install` | Full copy deployment from repo |
+| Link | `--link` | Symlink deployment (recommended for developers — git pull updates runtime) |
+| Uninstall | `--uninstall` | Clean removal, preserving user data |
+
+**Modifiers:**
+
+| Flag | Effect |
+|------|--------|
+| `--cron` | Opt-in. Manage crontab entries from templates. Composable with install/link/uninstall. |
+
+**Relationships:**
+- Prerequisite for hooks, transcript staging, and cron automation
+- Independent of touch-domain (machine setup vs domain health)
+- Composes forward: after install → add-domain to register domains
+
+**Defined in:** `install-spec.md` (specification), `install-domain-toolkit` SKILL.md + `bin/install-domain-toolkit` (implementation).
+
+---
+
 ### `distill-domain`
 
 **Concern:** Memory processing — post-session distillation.
@@ -177,8 +207,7 @@ distill-domain --all              # walk registry, distill all domains with pend
 **Relationships:**
 - Reads session artifacts from `.context/sessions/`
 - Reads current MEMORY.md and DECISIONS.md
-- Proposes updates (staged writes, never direct)
-- Human reviews and approves (per `memory_review` setting in persona.md)
+- Writes second-order re-synthesis directly (conflicts logged in DISTILL-CONFLICTS.md)
 - Appends synthesis marker to CC session JSONL (high-water mark for incremental processing)
 - Works with best available signal: agent-authored session notes as guaranteed minimum, richer sources (transcripts, gateway logs) when available
 
@@ -210,6 +239,9 @@ distill-domain --all              # walk registry, distill all domains with pend
 ## Command Relationships
 
 ```
+install-domain-toolkit → deploys runtime to ~/.claude/domain-toolkit/
+                       → prerequisite for hooks, stager, cron
+
 add-domain --new → touch-domain --new → add-domain (register)
                                       ↓
                                  open-domain (suggested)

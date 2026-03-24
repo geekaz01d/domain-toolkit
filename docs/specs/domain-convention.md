@@ -59,7 +59,7 @@ Agent identity and context map. Tells a subagent:
 
 - **How to show up**: persona, tone, model tier preference
 - **What to read**: pointers to PROFILE.md, MEMORY.md, DECISIONS.md, STATE.md, and any other context files relevant to this domain
-- **Behavioral settings**: distillation strategy (`memory_review: auto | flag | manual`), any domain-specific constraints
+- **Behavioral settings**: any domain-specific constraints
 
 Lives at the domain root (tracked in git). Placement is contextual — can also appear in skill directories, subtrees, or globally. See `file-convention.md` for placement rules.
 
@@ -174,11 +174,9 @@ The domain is born version-controlled, context-aware, and ready for interactive 
 
 ### Post-Session
 
-1. Scheduled cron job (or manual `distill-domain <domain>`) processes pending sessions
-2. Distiller (isolated `claude -p` invocation) reads session transcripts + current synthesized files
-3. Proposes updates to MEMORY.md and DECISIONS.md
-4. Review gate (per persona.md `memory_review` setting): human review, auto-commit, or flag
-5. See `distiller-spec.md` for session tracking, synthesis markers, and the full pipeline
+1. Stager harvests CC session JSONL into `.context/sessions/` transcripts and CC auto-memory into `.context/`
+2. Optionally: distiller (isolated `claude -p` invocation) re-synthesizes MEMORY.md and DECISIONS.md as a second-order pass
+3. See `distiller-spec.md` for session tracking, synthesis markers, and the full pipeline
 
 ### Periodic Maintenance
 

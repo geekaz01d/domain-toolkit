@@ -33,10 +33,10 @@ The distiller methodology combines three ideas: (1) post-session synthesis by an
 
 No existing system combines:
 1. **Processual isolation** — a separate agent invocation reads cold artifacts
-2. **Human review gate** — proposed/approved lifecycle on synthesized output
+2. **Two-order memory** — first-order (session agent writes domain memory directly) and second-order (distiller re-synthesizes from canonical record)
 3. **Canonical permanence** — session transcripts are the durable asset; synthesis is derived and re-derivable
 
-Each of these exists independently (blameless postmortems do #1, code review does #2, event sourcing does #3). The combination applied to agent memory appears to be new.
+Each of these exists independently (blameless postmortems do #1, tiered memory systems do #2, event sourcing does #3). The combination applied to agent memory appears to be new.
 
 ### What's Not Novel (and That's Fine)
 

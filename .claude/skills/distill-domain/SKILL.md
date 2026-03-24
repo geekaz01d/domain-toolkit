@@ -1,6 +1,6 @@
 ---
 name: distill-domain
-description: Run the domain-toolkit distillation pipeline for a single domain by turning session artifacts into proposed MEMORY.md and DECISIONS.md updates.
+description: Run the domain-toolkit distillation pipeline for a single domain — second-order re-synthesis of MEMORY.md and DECISIONS.md from session transcripts and first-order artifacts.
 user-invocable: false
 context: fork
 model: opus
@@ -13,10 +13,10 @@ You are implementing the **distiller** described in `distiller-spec.md` as a Cla
 
 This skill:
 
-- Reads synthesized files (`MEMORY.md`, `DECISIONS.md`) and session artifacts.
-- Produces updated synthesized files with `status: proposed` frontmatter (in `manual` mode).
+- Reads domain memory files (`MEMORY.md`, `DECISIONS.md`), CC auto-memory, and session transcripts.
+- Produces second-order re-synthesized domain memory with provenance frontmatter.
 
-It must respect the **review mode** configured in `persona.md` (`memory_review: manual | flag | auto`), but should start conservatively with `manual` unless clearly configured otherwise.
+The distiller writes directly — there is no review gate. Conflicts are logged in `DISTILL-CONFLICTS.md`.
 
 > **Note:** The session tracking mechanism (how the distiller knows which sessions have been processed) is under revision. `distiller-spec.md` defines a JSONL marker approach. This skill currently uses frontmatter-based tracking as an interim mechanism. See `distiller-spec.md` for the target design.
 
@@ -46,7 +46,7 @@ Under the domain root, expect:
 - `README.md` and optionally `.context/STATE.md` for grounding.
 - `.context/MEMORY.md` – current canonical memory.
 - `.context/DECISIONS.md` – current canonical decision log.
-- `persona.md` – agent identity and behavioural settings (read `memory_review` setting).
+- `persona.md` – agent identity and behavioural settings.
 - `.claude/domain-toolkit/domain.yaml` – domain manifest.
 - `.context/sessions/` – session artifacts with YAML frontmatter:
   - `*.md` session notes.
@@ -92,14 +92,11 @@ Follow the simple strategy from `distiller-spec.md`:
 
 ## Writing output
 
-### Review mode: `manual` (default)
-
-1. Write the updated `MEMORY.md` with frontmatter:
+1. Write the updated `MEMORY.md` with provenance frontmatter:
 
    ```yaml
    ---
-   status: proposed
-   distilled_at: <ISO-8601 timestamp>
+   synthesized_at: <ISO-8601 timestamp>
    source_sessions:
      - <timestamp of each processed session>
    ---
@@ -113,17 +110,6 @@ Follow the simple strategy from `distiller-spec.md`:
    - The conflicting items.
    - Which previous decisions or memory entries they clash with.
    - Whether the prior material should be revisited.
-
-### Review mode: `flag`
-
-- Auto-commit clearly non-conflicting, low-risk updates (no `status: proposed` frontmatter for those).
-- Write conflicting changes with `status: proposed` frontmatter for human review.
-- Be conservative; when in doubt, prefer `manual` behavior.
-
-### Review mode: `auto`
-
-- Write updates directly (no `status: proposed` frontmatter).
-- Still write `DISTILL-CONFLICTS.md` if conflicts exist, as an audit trail.
 
 ## Mark sessions as distilled
 
@@ -139,9 +125,8 @@ At the end of the skill run, summarize in chat:
 
 - Domain root path.
 - Number of session artifacts processed.
-- Review mode used.
-- Whether canonical files were updated (and whether with `status: proposed` or committed directly).
-- Whether any conflicts were detected.
-- Whether any disagreements were found between agent drafts and distiller extraction.
+- Whether domain memory files were updated.
+- Whether any conflicts were detected (logged in DISTILL-CONFLICTS.md).
+- Whether any disagreements were found between first-order memory and distiller synthesis.
 
 If you are unsure about any semantics, consult `docs/specs/distiller-spec.md` and follow it as the source-of-truth.

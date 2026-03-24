@@ -11,7 +11,7 @@ Authoritative specs live in:
 - `file-convention.md` – file hierarchy, load order, persona placement, governance layers.
 - `domain-convention.md` – session file types and roles, MEMORY.md and DECISIONS.md structure.
 - `command-taxonomy.md` – all commands, concerns, and relationships.
-- `distiller-spec.md` – session lifecycle tracking, synthesis pipeline, review gate.
+- `distiller-spec.md` – session lifecycle tracking, first/second-order memory, synthesis pipeline.
 
 When this skill is active and the user asks how to structure or maintain a domain:
 
