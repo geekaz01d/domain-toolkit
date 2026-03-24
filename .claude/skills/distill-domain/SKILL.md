@@ -32,6 +32,18 @@ During early use (before you trust the pipeline), prefer running at **Sonnet-tie
 
 ## How to interpret arguments
 
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
+
+```
+distill-domain — Distillation pipeline
+
+Usage: /distill-domain [domain-path] [--re-synth] [--strategy simple|adversarial|custom]
+
+Options:
+  --re-synth              Reset session tracking and reprocess all sessions
+  --strategy <name>       Override the distillation strategy for this run
+```
+
 - If `$ARGUMENTS` is provided, treat the first positional argument as the **domain root path** (relative or absolute).
 - If no positional argument is provided, treat the **current working directory** as the domain root.
 - `--re-synth`: Reset session tracking and reprocess all sessions from scratch.

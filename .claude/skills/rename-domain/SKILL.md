@@ -18,6 +18,17 @@ rename-domain changes the domain label. It does **not** touch the repo field, di
 
 ## Argument Parsing
 
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
+
+```
+rename-domain — Domain identity management
+
+Usage: /rename-domain <old-name> <new-name> [--no-touchy]
+
+Options:
+  --no-touchy   Dry run — show the change plan without modifying anything
+```
+
 Parse `$ARGUMENTS` for flags and two positional arguments:
 
 - **`<old-name> <new-name>`** — Rename the domain's logical name.

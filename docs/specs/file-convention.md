@@ -54,6 +54,28 @@ These are the governance floor. Every agent entering any domain inherits this ba
 
 A domain can have zero, one, or many personas. Governance does not depend on persona existing.
 
+### Skill Layer (`.claude/skills/`)
+
+Skills are implemented as Claude Code project-local skills. Each skill lives in its own directory under `.claude/skills/`. Skills may use a **monolithic** or **decomposed** structure:
+
+**Monolithic** (simple skills):
+```
+.claude/skills/<skill>/
+  SKILL.md          # All instructions in one file
+```
+
+**Decomposed** (multi-modal skills — see `skill-phase-decomposition-spec.md`):
+```
+.claude/skills/<skill>/
+  SKILL.md          # Classification gate: parse arguments, identify mode, read phase file
+  phases/
+    <mode>.md       # Complete protocol for one mode
+  refs/
+    <shared>.md     # Shared reference material, loaded by phases on demand
+```
+
+In the decomposed pattern, SKILL.md is a lightweight dispatcher. The agent reads it, classifies the mode from arguments, then reads exactly one phase file. Phases load refs as needed. This reduces instruction competition and improves protocol compliance.
+
 ### Knowledge Layer (`.context/` — gitignored, synced via Syncthing)
 
 | File | Location | Tracked in git | Purpose |

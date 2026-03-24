@@ -4,136 +4,35 @@ description: "Registry management: scan, register, or scaffold new domains. Read
 argument-hint: "[--update | --new | --scan-path] [path]"
 ---
 
-You are implementing the **`add-domain`** command from `command-taxonomy.md`. This manages the domain registry — scanning, registering, and scaffolding domains.
+You are implementing the **`add-domain`** command from `command-taxonomy.md`.
 
-Read `registry-spec.md` for the canonical registry format and lifecycle. Read `domain-yaml-schema.md` for the domain.yaml schema.
+Registry location: `~/.claude/domain-toolkit/REGISTRY.yaml`
 
-## Registry Location
+## Argument Classification
 
-`~/.claude/domain-toolkit/REGISTRY.yaml` — local, machine-specific, synced via Syncthing.
+Parse `$ARGUMENTS` for flags and a path. Normalize paths to absolute. Expand `~` to the user's home directory.
 
-## Argument Parsing
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
 
-Parse `$ARGUMENTS` for flags and a path:
+```
+add-domain — Registry management
 
-- **`<path>`** (no flags) — Register a single domain by reading its domain.yaml
-- **`--update`** — Walk all scan paths, re-scan domain.yaml files, rebuild the registry
-- **`--new <path>`** — Scaffold a new domain and register it (delegates to `touch-domain --new`, then registers)
-- **`--scan-path <path>`** — Add a directory to the scan paths list in REGISTRY.yaml
+Usage: /add-domain [--update | --new | --scan-path] [path]
 
-Normalize paths to absolute before proceeding. Expand `~` to the user's home directory.
-
-## Mode: Register Single Domain (`add-domain <path>`)
-
-1. Verify `<path>/.claude/domain-toolkit/domain.yaml` exists. If not, error: "No domain.yaml found at `<path>`. Is this a managed domain? Use `add-domain --new <path>` to scaffold one."
-2. Read and parse the domain.yaml file.
-3. Read the current REGISTRY.yaml (or create a new one if it doesn't exist).
-4. Add or update the domain entry under `domains:`:
-   - Key: the `name` field from domain.yaml
-   - `path`: the absolute path where domain.yaml was found (use `~` for paths under `$HOME`)
-   - Copy all fields from domain.yaml: `repo`, `type`, `description`, `sets`, `canonical_source`, `default_branch`, `remotes`, `kit_health`, `last_touched`, plus any freeform keys
-   - If the domain already exists in the registry, merge: update all fields from domain.yaml, preserve any registry-only fields
-5. Rebuild the sets index (computed reverse lookup from all domain `sets` fields).
-6. Write REGISTRY.yaml with updated `generated` timestamp.
-7. Report: "Registered `<name>` at `<path>` in REGISTRY.yaml."
-
-## Mode: Update Registry (`add-domain --update`)
-
-1. Read REGISTRY.yaml. If it doesn't exist, error: "No registry found. Create one with `add-domain <path>` to register your first domain, or `add-domain --scan-path <path>` to set up scan paths."
-2. Read the `scan_paths` list from REGISTRY.yaml.
-3. Walk each scan path:
-   - List immediate subdirectories (one level deep)
-   - For each subdirectory, check if `.claude/domain-toolkit/domain.yaml` exists
-   - If found, read and parse domain.yaml
-   - Skip domains with `registry: exclude` in their domain.yaml
-   - Do NOT recurse into subdirectories of found domains
-4. For scan paths that are themselves domains (have domain.yaml at the scan path root), include them too.
-5. Merge all found domains into the registry:
-   - New domains are added
-   - Existing domains are updated (all fields refreshed from domain.yaml)
-   - Domains that were previously in the registry but not found on disk are **preserved with a flag**: add `on_disk: false` to their entry. Do not silently remove them — the user may have an unmounted drive or a domain on another machine.
-6. Rebuild the sets index.
-7. Write REGISTRY.yaml with updated `generated` timestamp.
-8. Report summary: domains found, added, updated, not-found-on-disk. List any new domains or status changes.
-
-## Mode: Scaffold New Domain (`add-domain --new <path>`)
-
-This is a convenience that composes two commands:
-
-1. Invoke `touch-domain --new <path>` to scaffold the domain (interactive onboarding, domain.yaml creation, git init, etc.)
-2. After touch-domain completes, run the single-domain registration flow (Mode: Register) to add it to the registry.
-3. Report: "Scaffolded and registered `<name>` at `<path>`."
-
-**Important:** Do not duplicate touch-domain's logic. Delegate to it. The onboarding conversation, scaffolding, and git setup all belong to touch-domain.
-
-## Mode: Add Scan Path (`add-domain --scan-path <path>`)
-
-1. Verify the path exists and is a directory. If not, error.
-2. Read REGISTRY.yaml (or create a minimal one with empty `domains:` and `sets:`).
-3. Add the path to the `scan_paths` list (use `~` for paths under `$HOME`). Skip if already present.
-4. Write REGISTRY.yaml.
-5. Report: "Added scan path `<path>`. Run `add-domain --update` to scan for domains."
-6. Optionally suggest: "Want me to run `--update` now to scan this path?"
-
-## Registry File Format
-
-When writing REGISTRY.yaml, follow this structure:
-
-```yaml
-# ~/.claude/domain-toolkit/REGISTRY.yaml
-# Generated by add-domain --update
-# Do not edit — regenerate from domain.yaml files on disk
-
-generated: <ISO 8601 timestamp>
-scan_paths:
-  - ~/sources
-  - ~/sources/infrastructure
-
-# ── Domain Entries ────────────────────────────────────────────────
-
-domains:
-
-  <domain-name>:
-    path: <absolute path with ~ for $HOME>
-    repo: <repo name>
-    type: <subject | personal>
-    description: "<one-liner>"
-    sets:
-      - <set-name>
-    canonical_source: <bare repo URL>
-    kit_health: <yes | no | partial>
-    last_touched: <date or null>
-    # Plus any freeform keys from domain.yaml
-
-# ── Sets Index (computed reverse lookup) ──────────────────────────
-
-sets:
-  <set-name>:
-    - <domain-name>
-    - <domain-name>
+Modes:
+  <path>              Register a single domain by reading its domain.yaml
+  --update            Walk all scan paths, rebuild the registry
+  --new <path>        Scaffold a new domain and register it
+  --scan-path <path>  Add a directory to the scan paths list
 ```
 
-## Path Normalization
+Otherwise, identify which mode applies:
 
-When writing paths to REGISTRY.yaml:
-- Replace `$HOME` prefix with `~` for readability and portability across machines with different usernames
-- Use absolute paths for anything not under `$HOME`
+| Arguments | Mode | Phase file |
+|-----------|------|------------|
+| `<path>` (no flags) | Register single domain | `phases/register.md` |
+| `--update` | Rebuild registry from scan paths | `phases/update.md` |
+| `--new <path>` | Scaffold + register | `phases/new.md` |
+| `--scan-path <path>` | Add scan path | `phases/scan-path.md` |
 
-When reading paths from REGISTRY.yaml:
-- Expand `~` to `$HOME` before filesystem operations
-
-## Error Handling
-
-- Missing domain.yaml → suggest `--new` to scaffold
-- Missing REGISTRY.yaml → create one on first `add-domain <path>` or `--scan-path`
-- Parse errors in domain.yaml → report and skip, don't abort the whole scan
-- Unreachable scan path → warn and continue with remaining paths
-- Name collision (two domain.yaml files with the same `name`) → report both paths, skip the duplicate, let the user resolve
-
-## Name Resolution
-
-The registry supports name resolution for other commands. When `open-domain` or `touch-domain` receives a name:
-
-1. Check `domains:` — if a domain with that name exists, return its path
-2. Check `sets:` — if a set with that name exists, return its member domains
-3. Domain wins over set if both exist (and surface the collision as a concern)
+**Read the identified phase file now and follow its instructions.** Do not proceed without reading the phase file.

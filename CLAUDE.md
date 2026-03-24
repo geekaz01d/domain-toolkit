@@ -47,9 +47,11 @@ Core specs (current):
 
 ## Claude Code skills for this repo
 
-- `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal.
+Multi-modal skills use a gate+phases pattern: SKILL.md classifies the mode, then loads the relevant phase file. See `skill-phase-decomposition-spec.md` for the design. `bin/lint-skills` validates skill structure.
+
+- `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal (decomposed: 4 phases + 3 refs).
 - `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
-- `/add-domain` – registry management: scan, register, or scaffold new domains. Builds/updates REGISTRY.yaml.
+- `/add-domain` – registry management: scan, register, or scaffold new domains. Builds/updates REGISTRY.yaml. Modal (decomposed: 4 phases + 2 refs).
 - `/distill-domain` – distillation: second-order re-synthesis of `MEMORY.md` / `DECISIONS.md` from session transcripts (experimental).
 - `/group-domain` – set management: organise domains into named groups. Modifies domain.yaml sets fields.
 - `/rename-domain` – domain identity: rename a domain's logical name (the `name` field in domain.yaml). Does not touch repo name, directory, bare repo, or remote URLs — storage reorganisation is a separate concern.
