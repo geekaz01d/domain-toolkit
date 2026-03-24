@@ -72,7 +72,7 @@ See `docs/specs/` for the full specification set:
 - `registry-spec.md` — derived registry, scan paths, sets index
 - `set-assembly-spec.md` — worktree assembly, set roots, Docker integration, custodial checklist, agentic git operations, git recovery
 - `storage-and-services.md` — storage topology, containerised viewports, Syncthing overlay
-- `distiller-spec.md` — distillation pipeline, strategies, review gate
+- `distiller-spec.md` — distillation pipeline, first/second-order memory, strategies
 - `sandbox-test-data.md` — demo sandbox specification
 
 ## Current state

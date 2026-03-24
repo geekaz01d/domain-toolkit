@@ -14,7 +14,8 @@ Core specs (current):
 - `docs/specs/set-assembly-spec.md` – git worktrees for set assembly, set roots, Docker integration, custodial checklist, agentic git operations, git recovery
 - `docs/specs/storage-and-services.md` – storage topology, containerised viewports, Syncthing overlay
 - `docs/specs/rename-spec.md` – rename identity model, scopes, execution order, boundaries
-- `docs/specs/distiller-spec.md` – distillation pipeline, isolation requirement, strategies, review gate
+- `docs/specs/install-spec.md` – installation lifecycle, bundle manifest, hook chain, modes, preservation rules
+- `docs/specs/distiller-spec.md` – distillation pipeline, first/second-order memory, isolation, strategies
 - `docs/specs/sandbox-test-data.md` – demo sandbox specification
 
 ## Command taxonomy
@@ -26,7 +27,8 @@ Core specs (current):
 | **`add-domain`** | Registry management — scan, register, scaffold new domains | Implemented |
 | **`group-domain`** | Set management — organise domains into named groups | Implemented |
 | **`rename-domain`** | Domain identity — rename the logical name (label only, not storage) | Implemented |
-| **`distill-domain`** | Memory processing — isolated post-session distillation | Pending (distiller prompt not written) |
+| **`install-domain-toolkit`** | Runtime lifecycle — deploy, validate, or remove the runtime on a machine | Implemented |
+| **`distill-domain`** | Memory processing — second-order re-synthesis from session transcripts | Pending (experimental) |
 | **`overview`** | Capacity-aware briefing — registry scan filtered through personal domain | Implemented |
 
 ## When working inside a domain kit
@@ -41,16 +43,17 @@ Core specs (current):
   2. Domain governance (`<domain>/CLAUDE.md`, `AGENTS.md` if present)
   3. Persona (closest `persona.md` to launch context)
   4. Context files (`PROFILE.md → MEMORY.md → DECISIONS.md → STATE.md`)
-- **Write on exit:** use the distiller instead of editing memory/decisions directly.
+- **First-order memory:** session agents write STATE.md, MEMORY.md, and DECISIONS.md directly during interactive sessions. The distiller optionally re-synthesizes as a second-order pass.
 
 ## Claude Code skills for this repo
 
 - `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal.
 - `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
 - `/add-domain` – registry management: scan, register, or scaffold new domains. Builds/updates REGISTRY.yaml.
-- `/distill-domain` – distillation: transforms session artifacts into proposed `MEMORY.md` / `DECISIONS.md` updates.
+- `/distill-domain` – distillation: second-order re-synthesis of `MEMORY.md` / `DECISIONS.md` from session transcripts (experimental).
 - `/group-domain` – set management: organise domains into named groups. Modifies domain.yaml sets fields.
 - `/rename-domain` – domain identity: rename a domain's logical name (the `name` field in domain.yaml). Does not touch repo name, directory, bare repo, or remote URLs — storage reorganisation is a separate concern.
+- `/install-domain-toolkit` – runtime lifecycle: deploy, validate, or remove the domain-toolkit runtime. Delegates to `bin/install-domain-toolkit` shell script.
 - `/domain-convention` – agent posture for domain layout and file roles (not user-invocable).
 - `/domain-overview` – capacity-aware briefing: registry scan filtered through personal domain profile.
 
@@ -58,4 +61,4 @@ Core specs (current):
 
 1. `/touch-domain <path>` — validate or bootstrap a domain.
 2. `/open-domain <domain> --cursor` — open the domain viewport for interactive work.
-3. After sessions, run `/distill-domain <domain>` to propose updates to `MEMORY.md` and `DECISIONS.md`.
+3. Optionally, run `/distill-domain <domain>` for second-order re-synthesis of `MEMORY.md` and `DECISIONS.md`.

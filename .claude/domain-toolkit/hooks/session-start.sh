@@ -26,7 +26,7 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 if [ -n "$SESSION_ID" ] && [ -d ".context/sessions" ]; then
   # Domain-local session index — each domain owns its session records
-  echo "{\"session_id\":\"$SESSION_ID\",\"transcript_path\":\"$TRANSCRIPT_PATH\",\"source\":\"$SOURCE\",\"started\":\"$TIMESTAMP\"}" \
+  echo "{\"session_id\":\"$SESSION_ID\",\"transcript_path\":\"$TRANSCRIPT_PATH\",\"cwd\":\"$CWD\",\"source\":\"$SOURCE\",\"started\":\"$TIMESTAMP\"}" \
     >> ".context/sessions/session-index.jsonl"
 fi
 

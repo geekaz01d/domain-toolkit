@@ -18,5 +18,5 @@ Specs and skills are documented in `CLAUDE.md`.
 
 ## Behavioral Settings
 
-- `memory_review: manual` — proposed memory changes require human review
-- Never auto-commit to MEMORY.md or DECISIONS.md without distillation pipeline
+- Session agent writes first-order domain memory (STATE.md, MEMORY.md, DECISIONS.md) directly during interactive sessions
+- Distiller re-synthesizes as a second-order pass (experimental)
