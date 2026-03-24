@@ -4,157 +4,41 @@ description: "Universal domain kit management: structural validation, git preche
 argument-hint: "[--full | --new | --all | --no-touchy | -y] [domain-path]"
 ---
 
-You are implementing the **`touch-domain`** command from `command-taxonomy.md`. This is the universal entry point for any domain interaction — modal, flag-driven, and extensible.
+You are implementing the **`touch-domain`** command from `command-taxonomy.md`.
 
-Read `command-taxonomy.md` for the command definition, `set-assembly-spec.md` for the custodial checklist and agentic git operations, and `file-convention.md` for the file hierarchy. Read the meta-domain's `domain.yaml` (`~/.claude/domain-toolkit/domain.yaml` or the repo's own `.claude/domain-toolkit/domain.yaml`) for `default_remote_pattern` — the installation-level default for bare repo creation.
+## Argument Classification
 
-## Argument Parsing
+Parse `$ARGUMENTS` for flags and a path. The remaining non-flag argument is the **domain path** (relative or absolute). If absent, use the current working directory. Normalize to an absolute path.
 
-Parse `$ARGUMENTS` for flags and a path:
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
 
-- **`--full`** — Full profile regeneration mode. **Requires a domain path** (or uses cwd). Does not sweep the registry — that's `--all`.
-- **`--new`** — New domain bootstrapping mode
-- **`--all`** — Sweep: run `--full` across every domain in the registry. **Expensive** — requires a model call per domain. Before executing, read the registry, count the domains, and warn the user: "This will run a full touch on N domains. Proceed?" Always prompt, even with `-y`. Respects `--no-touchy` (dry-run the sweep).
-- **`--no-touchy`** — Read-only diagnostic (no writes). Composes with other modes.
-- **`-y`** — Suppress prompts (auto-confirm safe git operations). Does NOT suppress the `--all` cost warning.
-- The remaining non-flag argument is the **domain path** (relative or absolute). If absent, use the current working directory. Exception: `--new` with no path prompts for one; `--all` ignores the path and uses the registry.
+```
+touch-domain — Universal domain kit management
 
-Normalize the domain path to an absolute path before proceeding.
+Usage: /touch-domain [--full | --new | --all | --no-touchy | -y] [domain-path]
 
-## Execution Order
+Modes:
+  (default)     Structural validation of a domain
+  --full        Validation + PROFILE.md regeneration + workspace file
+  --new         Interactive onboarding + scaffolding for a new domain
+  --all         Sweep: run --full across every domain in the registry
 
-Always follow this sequence:
+Modifiers:
+  --no-touchy   Read-only diagnostic (no writes, no prompts)
+  -y            Auto-confirm safe git operations
+```
 
-1. **Parse arguments** (flags + path)
-2. **Git precheck** (if domain path exists)
-3. **Mode dispatch** (based on flags and state)
-4. **Report** (summarize what was found/done)
+Otherwise, identify which mode applies:
 
-## Step 1: Git Precheck
+| Arguments | Mode | Phase file |
+|-----------|------|------------|
+| No mode flags | Default — structural validation | `phases/default.md` |
+| `--full` | Full — validation + PROFILE.md regen | `phases/full.md` |
+| `--new` | New — interactive onboarding + scaffolding | `phases/new.md` |
+| `--all` | Sweep — full touch across registry | `phases/all.md` |
 
-If the domain path exists, check whether it is a git repository. If `.git/` does not exist (as a directory or file), this domain is **not git-managed**. Report: "Not a git repository — skipping git precheck." Proceed directly to mode dispatch. Do not prompt to initialize git here — that's `--new`'s job if the user is bootstrapping.
+Modifier flags (`--no-touchy`, `-y`) are passed through to the phase — do not resolve them here.
 
-If the domain **is** a git repo, determine which of these 5 states applies:
+Exception: `--new` with no path prompts for one. `--all` ignores the path and uses the registry.
 
-| State | Condition | Action |
-|-------|-----------|--------|
-| **Diverged** | Local and remote have divergent commits | **Block all writes.** Surface the problem. Tell the user to resolve manually. Even `--full` and `--new` are blocked. |
-| **Behind** | Remote is ahead of local | **Block all writes.** Prompt: "Canonical version is on the server. Pull first or work on the server copy?" |
-| **Ahead** | Local has unpushed commits | **Proceed** with touch. Surface concern. Prompt to push (unless `-y`, which auto-confirms). |
-| **Clean** | In sync with remote | **Proceed** normally. |
-| **No remote** | `.git/` exists but no remote `origin` | **Proceed** with touch. Prompt to create bare remote per `default_remote_pattern` in the meta-domain's `domain.yaml` (unless `-y`, which auto-confirms). |
-
-**Implementation:** Use `git status`, `git remote -v`, `git rev-list --left-right --count HEAD...@{upstream}` (or similar) to determine the state. Handle missing upstream gracefully.
-
-**`-y` auto-confirms** states: Ahead, No remote. **`-y` does NOT override** Diverged or Behind — those always block.
-
-**`--no-touchy` skips** all prompts and writes but still reports the git state (or the absence of git).
-
-Also check and report (git repos only):
-- Uncommitted changes (staged or unstaged)
-- Detached HEAD, mid-rebase, or merge conflict state
-- Whether the remote matches `default_remote_pattern` from the meta-domain's `domain.yaml`
-
-## Step 2: Mode Dispatch
-
-### Default Mode (no `--full`, `--new`)
-
-Smart touch. Inspect the target path and pick the right action:
-
-1. **Path doesn't exist or has no `.context/`**: Tell the user "This doesn't exist as a domain. Create it with `touch-domain --new <path>`." Do not create anything.
-
-2. **Path exists, `.context/` exists but PROFILE.md is missing or stale**: Run structural validation (see below). Suggest `touch-domain --full` to regenerate the profile.
-
-3. **Path exists, `.context/` healthy**: Run structural validation only.
-
-**Structural validation** (the core of default touch):
-- `.context/` directory exists
-- `.claude/domain-toolkit/domain.yaml` exists (detection signal, tracked in git)
-- `persona.md` exists at domain root (agent identity, tracked in git)
-- `CLAUDE.md` exists at domain root (domain governance, tracked in git). If missing, scaffold from `~/.claude/CLAUDE.md` (global default) with a comment noting it was auto-generated. If present, surface drift from the global default as a concern.
-- Required `.context/` files exist: `STATE.md`, `MEMORY.md`, `DECISIONS.md`, `PROFILE.md`
-- `sessions/` directory exists
-- Pointer integrity: if `persona.md` exists, check that any referenced files in its context map actually exist
-- `domain.code-workspace` exists at domain root
-- For any missing structural element: if `--no-touchy`, just report it. Otherwise, create minimal placeholder scaffolding per `domain-convention.md`.
-
-**Staleness heuristic for PROFILE.md**: Compare PROFILE.md's modification time against MEMORY.md, DECISIONS.md, STATE.md, and README.md. If any source file is newer, PROFILE.md is considered stale.
-
-### `--full` Mode
-
-Everything default mode does, **plus** content synthesis:
-
-1. Run structural validation (create scaffolding if needed, unless `--no-touchy`)
-2. Read canonical context files: `README.md`, `domain.yaml`, `persona.md`, `STATE.md`, `MEMORY.md`, `DECISIONS.md`
-3. Perform a **light scan** of the domain's repo/folder contents:
-   - Focus on key files referenced in the canonical context
-   - Sample directory structure (don't exhaustively read large trees)
-4. **Regenerate `.context/PROFILE.md`**:
-   - Summarize what the domain is and does
-   - Key components, entry points, important files
-   - Important decisions and constraints from DECISIONS.md
-   - Current status and open threads from STATE.md
-   - Gaps or missing pieces in canonical files
-   - Header: `**Generated:** <date> (full touch)` and note that this is derived — edit source files instead
-5. **Generate or update `domain.code-workspace`** at the domain root:
-   - Two folders: domain root + `.context/` (named "Domain Context")
-   - `folderOpen` task to open context files as tabs
-   - Extension recommendation for `anthropic.claude-code`
-6. Print a summary: domain root, timestamp, notable gaps or warnings
-
-### `--new` Mode
-
-New domain bootstrapping. The path may or may not exist yet.
-
-1. If the path already has `.context/`, warn: "This already looks like a domain. Did you mean `touch-domain <path>` (default) or `touch-domain --full <path>`?"
-2. Create the domain directory if it doesn't exist
-3. **Begin interactive onboarding**: Ask the user about:
-   - What is this domain? What does it contain?
-   - What's its scope? Narrow or broad?
-   - Agent persona and model tier preference
-   - Initial concerns or priorities
-4. From the onboarding conversation, create:
-   - `.claude/domain-toolkit/domain.yaml` (manifest, detection signal) — tracked in git
-   - `persona.md` (agent identity, model tier, context map) — tracked in git
-   - `README.md` at domain root (from the user's description)
-   - `.context/` directory with scaffolding (gitignored)
-   - Initial `STATE.md`, `MEMORY.md` (minimal), `DECISIONS.md` (empty structure)
-   - `sessions/`
-5. Capture the onboarding conversation as the first session artifact in `.context/sessions/`
-6. **If not already a git repo**, offer to initialize git:
-   - Prompt: "Initialize git for this domain?" (unless `-y` auto-confirms, or `--no-touchy` skips)
-   - If yes: `git init`, prompt to create bare repo on the server per `default_remote_pattern` in the meta-domain's `domain.yaml`, configure origin remote, initial commit with scaffolding
-   - If no (or `--no-touchy`): skip git initialization. The domain is fully functional without git — it just won't have version control or remote backup. Note: "Domain created without git. You can initialize git later with `git init`."
-7. Run `--full` logic to generate PROFILE.md and `domain.code-workspace`
-8. Suggest opening the domain: `open-domain <domain> --cursor`
-
-### `--all` Mode
-
-Sweep the entire domain registry with `--full` touch on each domain.
-
-1. Read `~/.claude/domain-toolkit/REGISTRY.yaml` to get the list of known domains
-2. Count the domains and **always warn**: "This will run a full touch on N domains (model call per domain). Proceed?" This prompt is **never suppressed** — not by `-y`, not by automation. The user must confirm.
-3. If confirmed, iterate through each domain and run `--full` logic on it
-4. If `--no-touchy` is active, do a dry-run sweep: report what each domain's full touch would find, but write nothing
-5. Summarize the sweep: domains touched, issues found, profiles regenerated
-
-If no registry exists, tell the user: "No registry found. Create one with `add-domain --update` or seed `REGISTRY.yaml`."
-
-### `--no-touchy` Modifier
-
-Composes with any mode. Changes behavior:
-- **No writes** — don't create files, don't scaffold, don't modify anything
-- **No prompts** — don't ask about git operations
-- **Full reporting** — report everything that *would* happen
-- `--no-touchy` alone: report what default touch would find/fix
-- `--full --no-touchy`: report what full touch would do (including what PROFILE.md regen would produce)
-- `--new --no-touchy` on a nonexistent path: report what bootstrapping would create
-
-## Step 3: Report
-
-Summarize results in chat. Include:
-- Domain root path
-- Git state (which of the 6 states, plus any concerns)
-- Mode that was executed
-- What was found, created, or would be created (`--no-touchy`)
-- Any warnings or suggestions for next steps
+**Read the identified phase file now and follow its instructions.** Do not proceed without reading the phase file.

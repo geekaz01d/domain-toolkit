@@ -18,6 +18,20 @@ Read `registry-spec.md` for the sets index and name resolution. Read `domain-yam
 
 ## Argument Parsing
 
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
+
+```
+group-domain — Set management
+
+Usage: /group-domain <set-name> [--add <domain> | --remove <domain>] | --list
+
+Modes:
+  <set-name> --add <domain>      Add a domain to a set
+  <set-name> --remove <domain>   Remove a domain from a set
+  <set-name>                     List domains in the named set
+  --list                         List all sets and their members
+```
+
 Parse `$ARGUMENTS` for flags, a set name, and a domain name:
 
 - **`<set-name> --add <domain-name>`** — Add the named domain to the named set

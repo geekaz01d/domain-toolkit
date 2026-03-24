@@ -14,6 +14,23 @@ Manages the machine-level runtime: deployed hooks, binaries, cron templates, hoo
 
 ## Argument Parsing
 
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
+
+```
+install-domain-toolkit — Runtime lifecycle management
+
+Usage: /install-domain-toolkit [--status | --install | --link | --uninstall] [--cron]
+
+Modes:
+  --status      Read-only report of current installation state (default)
+  --install     Full copy deployment to ~/.claude/domain-toolkit/
+  --link        Symlink deployment (git pull updates runtime instantly)
+  --uninstall   Clean removal, preserving user data
+
+Modifiers:
+  --cron        Manage crontab entries (opt-in, composable)
+```
+
 Parse `$ARGUMENTS` for mode flags:
 
 - **`--status`** (default if no mode flag) — Read-only report of current installation state

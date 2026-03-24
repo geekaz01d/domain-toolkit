@@ -15,6 +15,18 @@ Read `domain-model-semantics.md` for the overview function design. Read `registr
 
 ## Argument Parsing
 
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
+
+```
+domain-overview — Capacity-aware briefing
+
+Usage: /domain-overview [@group]
+
+Options:
+  @<group>   Scope the overview to a single set (e.g., @infrastructure)
+  (none)     Full overview across all domains in the registry
+```
+
 Parse `$ARGUMENTS`:
 
 - **No arguments** — Full overview across all domains in the registry

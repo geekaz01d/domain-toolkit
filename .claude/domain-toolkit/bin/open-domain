@@ -37,7 +37,7 @@ for arg in "$@"; do
   case "$arg" in
     --cursor)   VIEWPORT="cursor" ;;
     --terminal) VIEWPORT="terminal" ;;
-    -h|--help)  usage ;;
+    -h|--help|--usage)  usage ;;
     -*)         echo "Unknown option: $arg" >&2; exit 1 ;;
     *)          DOMAIN_PATH="$arg" ;;
   esac

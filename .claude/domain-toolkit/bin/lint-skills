@@ -1,0 +1,375 @@
+#!/usr/bin/env python3
+"""Structural linter for domain-toolkit Claude Code skills.
+
+Validates SKILL.md files and (when present) the phases/refs decomposition
+against the conventions in file-convention.md and skill-phase-decomposition-spec.md.
+
+Checks are grouped into two tiers:
+  - Universal: apply to all skills (monolithic or decomposed)
+  - Decomposed: apply only when phases/ directory exists
+
+Exit codes:
+  0 — all checks pass
+  1 — one or more errors found
+  2 — usage error
+"""
+
+import os
+import re
+import sys
+from pathlib import Path
+
+# ── Configuration ────────────────────────────────────────────────────────────
+
+REPO_ROOT = Path(__file__).resolve().parents[3]  # bin/ -> domain-toolkit/ -> .claude/ -> repo
+SKILLS_DIR = REPO_ROOT / ".claude" / "skills"
+SPECS_DIR = REPO_ROOT / "docs" / "specs"
+
+# Frontmatter fields
+REQUIRED_FIELDS = {"name", "description"}
+INVOCABLE_FIELDS = {"argument-hint"}  # required when user-invocable
+
+# Gate size heuristic: a decomposed SKILL.md gate should be small.
+# This counts non-blank, non-frontmatter lines in the body.
+GATE_MAX_BODY_LINES = 40
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+class Issue:
+    def __init__(self, skill: str, level: str, message: str):
+        self.skill = skill
+        self.level = level  # "error" or "warn"
+        self.message = message
+
+    def __str__(self):
+        marker = "ERROR" if self.level == "error" else "WARN "
+        return f"  [{marker}] {self.skill}: {self.message}"
+
+
+def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """Extract YAML-ish frontmatter and body from a markdown file.
+
+    Returns (fields_dict, body_text). Handles simple key: value pairs
+    and key: "quoted value" pairs. Does not handle nested YAML — we
+    only need top-level scalar fields from SKILL.md frontmatter.
+    """
+    fields = {}
+    body = text
+
+    if not text.startswith("---"):
+        return fields, body
+
+    lines = text.split("\n")
+    end = None
+    for i, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            end = i
+            break
+
+    if end is None:
+        return fields, body
+
+    for line in lines[1:end]:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r'^([a-zA-Z_-]+):\s*(.*)', line)
+        if m:
+            key = m.group(1)
+            val = m.group(2).strip().strip('"').strip("'")
+            fields[key] = val
+
+    body = "\n".join(lines[end + 1:])
+    return fields, body
+
+
+def count_body_lines(body: str) -> int:
+    """Count non-blank lines in the body (the substantive content)."""
+    return sum(1 for line in body.split("\n") if line.strip())
+
+
+def extract_spec_references(text: str) -> list[str]:
+    """Find backtick-quoted references that look like spec filenames.
+
+    Matches patterns like `command-taxonomy.md`, `distiller-spec.md`.
+    Excludes things that are clearly not filenames (contain spaces,
+    start with --, contain path separators handled separately).
+    """
+    refs = re.findall(r'`([a-zA-Z0-9_-]+\.md)`', text)
+    return list(set(refs))
+
+
+def extract_gate_table_phases(body: str) -> list[str]:
+    """Extract phase file paths from a markdown gate table.
+
+    Looks for table rows with a cell containing `phases/<name>.md`.
+    """
+    phases = re.findall(r'`phases/([^`]+\.md)`', body)
+    return list(set(phases))
+
+
+def extract_ref_references(text: str) -> list[str]:
+    """Extract refs/ file references from a phase or skill body.
+
+    Matches `refs/<name>.md` patterns.
+    """
+    refs = re.findall(r'`refs/([^`]+\.md)`', text)
+    return list(set(refs))
+
+
+# ── Checks ───────────────────────────────────────────────────────────────────
+
+def check_frontmatter(skill_name: str, fields: dict, body: str, skill_dir: Path) -> list[Issue]:
+    """Validate frontmatter fields."""
+    issues = []
+
+    if not fields:
+        issues.append(Issue(skill_name, "error", "No frontmatter found"))
+        return issues
+
+    for f in REQUIRED_FIELDS:
+        if f not in fields:
+            issues.append(Issue(skill_name, "error", f"Missing required frontmatter field: {f}"))
+
+    # Check name matches directory name
+    if "name" in fields and fields["name"] != skill_name:
+        issues.append(Issue(skill_name, "error",
+            f"Frontmatter name '{fields['name']}' doesn't match directory name '{skill_name}'"))
+
+    # User-invocable skills need argument-hint
+    is_invocable = fields.get("user-invocable", "").lower() != "false"
+    if is_invocable:
+        for f in INVOCABLE_FIELDS:
+            if f not in fields:
+                issues.append(Issue(skill_name, "warn",
+                    f"User-invocable skill missing '{f}' field"))
+
+    return issues
+
+
+def check_spec_references(skill_name: str, text: str) -> list[Issue]:
+    """Check that referenced spec files exist on disk."""
+    issues = []
+    refs = extract_spec_references(text)
+
+    for ref in refs:
+        # Only check files that look like spec documents
+        # Skip common patterns that aren't spec refs (e.g., domain.yaml, MEMORY.md)
+        if ref in ("domain.yaml", "persona.md", "CLAUDE.md", "AGENTS.md",
+                    "README.md", "PROFILE.md", "MEMORY.md", "DECISIONS.md",
+                    "STATE.md", "REGISTRY.yaml", "REGISTRY.md",
+                    "DISTILL-CONFLICTS.md"):
+            continue
+        # Skip files that are clearly context/domain files
+        if ref.startswith(("domain-toolkit.", )):
+            continue
+
+        spec_path = SPECS_DIR / ref
+        if not spec_path.exists():
+            issues.append(Issue(skill_name, "error",
+                f"Referenced spec file `{ref}` not found in docs/specs/"))
+
+    return issues
+
+
+def check_orphan_files(skill_name: str, skill_dir: Path, body: str) -> list[Issue]:
+    """Check for files in the skill directory that aren't referenced anywhere."""
+    issues = []
+
+    for f in skill_dir.iterdir():
+        if f.name == "SKILL.md":
+            continue
+        if f.is_dir():
+            continue  # phases/ and refs/ handled separately
+        # Check if the file is referenced in SKILL.md
+        if f.name not in body:
+            issues.append(Issue(skill_name, "warn",
+                f"File '{f.name}' in skill directory is not referenced in SKILL.md"))
+
+    return issues
+
+
+def check_decomposed_gate(skill_name: str, body: str, skill_dir: Path) -> list[Issue]:
+    """Validate the gate pattern for decomposed skills."""
+    issues = []
+    phases_dir = skill_dir / "phases"
+    refs_dir = skill_dir / "refs"
+
+    # Gate should be small
+    line_count = count_body_lines(body)
+    if line_count > GATE_MAX_BODY_LINES:
+        issues.append(Issue(skill_name, "warn",
+            f"Gate SKILL.md has {line_count} non-blank body lines "
+            f"(threshold: {GATE_MAX_BODY_LINES}). May contain leaked procedural content."))
+
+    # Check gate table -> phase file existence
+    table_phases = extract_gate_table_phases(body)
+    if not table_phases:
+        issues.append(Issue(skill_name, "warn",
+            "Decomposed skill has phases/ directory but no gate table entries "
+            "referencing `phases/*.md` found in SKILL.md"))
+
+    for phase_name in table_phases:
+        phase_path = phases_dir / phase_name
+        if not phase_path.exists():
+            issues.append(Issue(skill_name, "error",
+                f"Gate table references `phases/{phase_name}` but file doesn't exist"))
+
+    # Check for orphan phase files (in phases/ but not in gate table)
+    if phases_dir.exists():
+        for f in phases_dir.iterdir():
+            if f.suffix == ".md" and f.name not in table_phases:
+                # Also check if it's referenced anywhere in the body (sequential chaining)
+                if f"phases/{f.name}" not in body:
+                    issues.append(Issue(skill_name, "warn",
+                        f"Phase file `phases/{f.name}` is not referenced in the gate table"))
+
+    # Check refs/ integrity
+    if refs_dir.exists():
+        # Collect all ref references from phases and gate
+        all_ref_references = set(extract_ref_references(body))
+        if phases_dir.exists():
+            for phase_file in phases_dir.glob("*.md"):
+                phase_text = phase_file.read_text()
+                all_ref_references.update(extract_ref_references(phase_text))
+
+        # Check for orphan ref files
+        for f in refs_dir.iterdir():
+            if f.suffix == ".md" and f.name not in all_ref_references:
+                issues.append(Issue(skill_name, "warn",
+                    f"Ref file `refs/{f.name}` is not referenced by any phase or gate"))
+
+        # Check for missing ref files
+        for ref_name in all_ref_references:
+            ref_path = refs_dir / ref_name
+            if not ref_path.exists():
+                issues.append(Issue(skill_name, "error",
+                    f"Referenced `refs/{ref_name}` but file doesn't exist"))
+
+    # Check that phases don't reference other phases (except sequential pattern)
+    if phases_dir.exists():
+        for phase_file in phases_dir.glob("*.md"):
+            phase_text = phase_file.read_text()
+            cross_refs = re.findall(r'`phases/([^`]+\.md)`', phase_text)
+            for cross in cross_refs:
+                issues.append(Issue(skill_name, "warn",
+                    f"Phase `phases/{phase_file.name}` references another phase "
+                    f"`phases/{cross}`. Cross-phase references should be driven by "
+                    f"the gate, not by phases themselves."))
+
+    return issues
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+def lint_skill(skill_dir: Path) -> list[Issue]:
+    """Run all applicable checks on a single skill."""
+    skill_name = skill_dir.name
+    skill_file = skill_dir / "SKILL.md"
+    issues = []
+
+    if not skill_file.exists():
+        issues.append(Issue(skill_name, "error", "No SKILL.md found"))
+        return issues
+
+    text = skill_file.read_text()
+    fields, body = parse_frontmatter(text)
+
+    # Universal checks
+    issues.extend(check_frontmatter(skill_name, fields, body, skill_dir))
+    issues.extend(check_spec_references(skill_name, text))
+    issues.extend(check_orphan_files(skill_name, skill_dir, body))
+
+    # Decomposed checks (only when phases/ exists)
+    phases_dir = skill_dir / "phases"
+    if phases_dir.exists() and phases_dir.is_dir():
+        issues.extend(check_decomposed_gate(skill_name, body, skill_dir))
+
+    return issues
+
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ("--help", "--usage", "-h"):
+        print("""lint-skills — Structural linter for domain-toolkit Claude Code skills
+
+Usage: lint-skills [--help | --usage | -h]
+
+Validates SKILL.md files and (when present) the phases/refs decomposition.
+
+Universal checks (all skills):
+  - Frontmatter exists with required fields (name, description)
+  - name matches the skill directory name
+  - User-invocable skills have argument-hint
+  - Spec file references resolve to files in docs/specs/
+  - No orphan files in the skill directory
+
+Decomposed checks (when phases/ exists):
+  - Gate table rows resolve to phase files on disk
+  - No orphan phase or ref files
+  - Gate body is under size threshold
+  - Phase files don't cross-reference other phases
+
+Exit codes: 0 = pass, 1 = errors found, 2 = usage error""")
+        sys.exit(0)
+
+    if not SKILLS_DIR.exists():
+        print(f"Skills directory not found: {SKILLS_DIR}", file=sys.stderr)
+        sys.exit(2)
+
+    # Collect skill directories
+    skill_dirs = sorted(
+        d for d in SKILLS_DIR.iterdir()
+        if d.is_dir() and not d.name.startswith(".")
+    )
+
+    if not skill_dirs:
+        print("No skill directories found.", file=sys.stderr)
+        sys.exit(2)
+
+    all_issues: list[Issue] = []
+    errors = 0
+    warns = 0
+
+    print(f"Linting {len(skill_dirs)} skills in {SKILLS_DIR}\n")
+
+    for skill_dir in skill_dirs:
+        issues = lint_skill(skill_dir)
+        all_issues.extend(issues)
+
+        skill_errors = [i for i in issues if i.level == "error"]
+        skill_warns = [i for i in issues if i.level == "warn"]
+        errors += len(skill_errors)
+        warns += len(skill_warns)
+
+        # Status line per skill
+        is_decomposed = (skill_dir / "phases").exists()
+        structure = "decomposed" if is_decomposed else "monolithic"
+        if skill_errors:
+            status = "FAIL"
+        elif skill_warns:
+            status = "WARN"
+        else:
+            status = "OK"
+
+        print(f"  {skill_dir.name:<30} [{structure:<12}] {status}")
+
+        for issue in issues:
+            print(f"    {issue}")
+
+    # Summary
+    print(f"\n{'─' * 60}")
+    print(f"  {len(skill_dirs)} skills checked, {errors} errors, {warns} warnings")
+
+    if errors > 0:
+        print(f"\n  Fix errors before proceeding with decomposition.")
+        sys.exit(1)
+    elif warns > 0:
+        print(f"\n  Warnings are advisory — review before decomposition.")
+        sys.exit(0)
+    else:
+        print(f"\n  All checks passed.")
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

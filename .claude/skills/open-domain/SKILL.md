@@ -8,6 +8,18 @@ You are implementing the **`open-domain`** command from `command-taxonomy.md`. T
 
 ## Argument Parsing
 
+If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
+
+```
+open-domain — Launch a domain viewport for interactive work
+
+Usage: /open-domain <domain-path> [--cursor | --terminal]
+
+Options:
+  --cursor     Open in Cursor/VS Code (default)
+  --terminal   Open in terminal Claude Code (no IDE)
+```
+
 Parse `$ARGUMENTS` for a domain identifier and a viewport flag:
 
 - **`--cursor`** — Open in Cursor/VS Code (default if no flag given)
