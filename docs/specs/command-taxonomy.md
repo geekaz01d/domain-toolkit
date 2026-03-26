@@ -1,6 +1,6 @@
 # Command Taxonomy
 
-**Status:** Draft — captured 2026-03-18, revised 2026-03-20 (rename-domain rewrite, no-git grace)
+**Status:** Draft — captured 2026-03-18, revised 2026-03-25 (open-domain viewport profiles)
 **Context:** Defines all domain-toolkit commands, their concerns, and relationships. Supersedes the command sections of `orchestrator-architecture.md` which predates the current design (sets, domain.yaml, file convention, Syncthing overlay).
 
 ---
@@ -84,28 +84,35 @@ Operates from the outside, objectively. The universal entry point for domain mai
 **Usage:**
 
 ```
-open-domain cashflow              # open a single domain
-open-domain infrastructure        # open a set (if no domain matches the name)
-open-domain cashflow --cursor     # open in Cursor/VS Code
-open-domain cashflow --terminal   # open in terminal Claude Code
-open-domain cashflow --container  # open as containerised viewport on fluffy
+open-domain cashflow                      # open in default viewport (terminal)
+open-domain cashflow --viewport tmux      # open in tmux session
+open-domain cashflow --viewport cursor    # open in Cursor/VS Code
+open-domain cashflow --viewport container # open as containerised viewport
+open-domain infrastructure                # open a set (if no domain matches)
 ```
+
+**Viewport resolution order:**
+1. Explicit `--viewport <name>` argument
+2. `default_viewport` from `~/.claude/domain-toolkit/config.yaml`
+3. `terminal` (implicit default — bare Claude session in current shell)
+
+**Viewport profiles** are YAML files at `~/.claude/domain-toolkit/viewports/`. Each profile defines: prechecks (what the domain must have), template conditions (in_tmux, in_screen, default), and command templates with placeholder substitution ({name}, {path}, {cmd}, {workspace_file}).
+
+Shipped profiles: `tmux`, `cursor`, `screen`, `container`.
 
 **Name resolution:** Domain name first, set name second (see `registry-spec.md`).
 
-**For single domains:** Opens the domain viewport (workspace file, context tabs, Claude Code session).
+**For single domains:** Resolves the viewport profile, runs prechecks, evaluates conditions, substitutes placeholders, launches.
 
-**For sets:** Assembles worktrees in `~/.claude/domain-toolkit/worktrees/<set>/`, scaffolds set root governance (CLAUDE.md, AGENTS.md, .claude/domain-toolkit/domain.yaml), opens the set root in the specified viewport.
-
-**For containerised viewports:** Orchestrates worktree assembly → container provisioning (DNS, reverse proxy, Docker) → returns URL.
+**For sets:** Assembles worktrees in `~/.claude/domain-toolkit/worktrees/<set>/`, scaffolds set root governance, opens the set root in the specified viewport.
 
 **Relationships:**
 - Reads registry for name resolution and domain/set lookup
+- Reads viewport profiles from `~/.claude/domain-toolkit/viewports/`
 - For sets: creates git worktrees, scaffolds set root
-- For containers: orchestrates provisioning stack (bind9, nginx, Docker)
-- Runs `touch-domain` on entry to surface concerns
+- For containers: delegates to deployment package via `domain-deploy`
 
-**Defined in:** `open-domain` SKILL.md + `bin/open-domain` (existing, updated for domain.yaml/persona.md; sets and containers not yet implemented)
+**Defined in:** `open-domain` SKILL.md (decomposed: 2 phases + 1 ref). See `viewport-spec.md` for specification.
 
 ---
 
@@ -280,5 +287,5 @@ The following from `orchestrator-architecture.md` are superseded by this documen
 | Registry as "format TBD, likely markdown" | `REGISTRY.yaml` (see `registry-spec.md`) |
 | `agent.md` as detection signal | `domain.yaml` at `.claude/domain-toolkit/domain.yaml` (see `file-convention.md`) |
 | Three commands (touch, open, distill) | Seven commands (touch, open, add, group, rename, distill, overview) |
-| VS Code as only viewport | VS Code, terminal, containerised viewport (see `set-assembly-spec.md`, `storage-and-services.md`) |
+| VS Code as only viewport | Named viewport profiles — tmux, cursor, screen, container (see `viewport-spec.md`) |
 | "The orchestrator runs as local user. No containers, no remote execution." | Containerised viewports on fluffy are a target (see `storage-and-services.md`) |

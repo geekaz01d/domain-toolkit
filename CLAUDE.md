@@ -16,6 +16,7 @@ Core specs (current):
 - `docs/specs/rename-spec.md` – rename identity model, scopes, execution order, boundaries
 - `docs/specs/install-spec.md` – installation lifecycle, bundle manifest, hook chain, modes, preservation rules
 - `docs/specs/distiller-spec.md` – distillation pipeline, first/second-order memory, isolation, strategies
+- `docs/specs/viewport-spec.md` – viewport module system: named profiles, command templates, access declarations
 - `docs/specs/sandbox-test-data.md` – demo sandbox specification
 
 ## Command taxonomy
@@ -23,7 +24,7 @@ Core specs (current):
 | Command | Concern | Status |
 |---------|---------|--------|
 | **`touch-domain`** | Kit health — validation, git precheck, profile regen, scaffolding, bootstrapping | Implemented |
-| **`open-domain`** | Viewport launch — single domain or set, Cursor/terminal/container | Implemented (single domain only) |
+| **`open-domain`** | Viewport launch — named viewport profiles (tmux, cursor, screen, container) | Implemented (single domain, profile-based) |
 | **`add-domain`** | Registry management — scan, register, scaffold new domains | Implemented |
 | **`group-domain`** | Set management — organise domains into named groups | Implemented |
 | **`rename-domain`** | Domain identity — rename the logical name (label only, not storage) | Implemented |
@@ -50,7 +51,7 @@ Core specs (current):
 Multi-modal skills use a gate+phases pattern: SKILL.md classifies the mode, then loads the relevant phase file. See `skill-phase-decomposition-spec.md` for the design. `bin/lint-skills` validates skill structure.
 
 - `/touch-domain` – domain management: structural validation, git precheck, profile regeneration, bootstrapping. Modal (decomposed: 4 phases + 3 refs).
-- `/open-domain` – viewport launch: opens a domain in Cursor or terminal Claude session.
+- `/open-domain` – viewport launch: named viewport profiles (tmux, cursor, screen, container). Modal (decomposed: 2 phases + 1 ref). See `viewport-spec.md`.
 - `/add-domain` – registry management: scan, register, or scaffold new domains. Builds/updates REGISTRY.yaml. Modal (decomposed: 4 phases + 2 refs).
 - `/distill-domain` – distillation: second-order re-synthesis of `MEMORY.md` / `DECISIONS.md` from session transcripts (experimental).
 - `/group-domain` – set management: organise domains into named groups. Modifies domain.yaml sets fields.
@@ -62,5 +63,5 @@ Multi-modal skills use a gate+phases pattern: SKILL.md classifies the mode, then
 ## Workflow
 
 1. `/touch-domain <path>` — validate or bootstrap a domain.
-2. `/open-domain <domain> --cursor` — open the domain viewport for interactive work.
+2. `/open-domain <domain> --viewport tmux` — open the domain viewport for interactive work.
 3. Optionally, run `/distill-domain <domain>` for second-order re-synthesis of `MEMORY.md` and `DECISIONS.md`.

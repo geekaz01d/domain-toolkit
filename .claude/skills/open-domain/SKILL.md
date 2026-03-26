@@ -1,81 +1,49 @@
 ---
 name: open-domain
-description: "Launch a domain viewport for interactive work. Opens a fresh, isolated Cursor window or terminal Claude session for the specified domain."
-argument-hint: "<domain-path> [--cursor | --terminal]"
+description: "Launch a domain viewport for interactive work. Opens a fresh, isolated session for the specified domain using named viewport profiles."
+argument-hint: "<domain> [--viewport <name>]"
 ---
 
 You are implementing the **`open-domain`** command from `command-taxonomy.md`. This command transitions from objective kit management to subjective interactive work inside a domain.
 
-## Argument Parsing
+## Argument Classification
+
+Parse `$ARGUMENTS` for a domain identifier and an optional `--viewport` flag.
 
 If `$ARGUMENTS` is `--help`, `--usage`, or `-h`, print this usage summary and stop:
 
 ```
 open-domain — Launch a domain viewport for interactive work
 
-Usage: /open-domain <domain-path> [--cursor | --terminal]
+Usage: /open-domain <domain> [--viewport <name>]
+
+Arguments:
+  <domain>              Domain path (absolute or relative) or registry name
 
 Options:
-  --cursor     Open in Cursor/VS Code (default)
-  --terminal   Open in terminal Claude Code (no IDE)
+  --viewport <name>     Named viewport profile (e.g. tmux, cursor, screen, container)
+  --terminal            Alias for --viewport terminal (backward compat)
+
+Viewport resolution:
+  1. Explicit --viewport argument
+  2. default_viewport from ~/.claude/domain-toolkit/config.yaml
+  3. terminal (bare launch in current shell)
 ```
 
-Parse `$ARGUMENTS` for a domain identifier and a viewport flag:
+Otherwise, identify which mode applies:
 
-- **`--cursor`** — Open in Cursor/VS Code (default if no flag given)
-- **`--terminal`** — Open in terminal Claude Code (no IDE)
-- The remaining non-flag argument is the **domain path or name**. Can be:
-  - An absolute path (`~/sources/cashflow`)
-  - A relative path (`../cashflow`)
-  - A domain name that can be resolved via the registry (future — for now, require a path)
-- If no domain is specified, list known domains from the registry (or prompt for a path if no registry exists).
+| Viewport resolved to | Mode | Phase file |
+|----------------------|------|------------|
+| `terminal` (or no viewport) | Terminal — bare launch in current shell | `phases/terminal.md` |
+| Any named viewport | Profile — load YAML, evaluate conditions, execute | `phases/profile.md` |
 
-Normalize to an absolute domain root path before proceeding.
+**Backward compatibility:** `--terminal` is accepted as an alias for `--viewport terminal`. `--cursor` is retired — use `--viewport cursor`.
 
-## Prechecks
+**Viewport resolution order:**
+1. Explicit `--viewport <name>` argument (highest priority)
+2. `default_viewport` from `~/.claude/domain-toolkit/config.yaml` (if file exists)
+3. `terminal` (implicit default)
 
-Before opening, validate:
+The remaining non-flag argument is the **domain path or name**. Can be an absolute path, a relative path, or a domain name resolvable via `~/.claude/domain-toolkit/REGISTRY.yaml`. If no domain is specified, list known domains from the registry (or prompt for a path if no registry exists). Normalize to an absolute domain root path.
 
-1. **Domain exists**: The path must exist and contain `.claude/domain-toolkit/domain.yaml`. If not, tell the user: "Not a domain. Bootstrap it with `/touch-domain --new <path>`."
-2. **Workspace file exists**: For `--cursor`, check that `<name>.code-workspace` exists at the domain root. If missing, tell the user: "No workspace file. Run `/touch-domain --full <path>` to generate one."
-
-Do NOT run a full touch or fix problems — just check and report. The user decides what to do.
-
-## `--cursor` Mode (default)
-
-Open the domain in a fresh Cursor window.
-
-1. Find the workspace file at the domain root (pattern: `*.code-workspace`)
-2. Run via Bash:
-   ```
-   cursor --new-window <path-to-workspace-file>
-   ```
-3. Report to the user:
-   - Domain name and path
-   - Workspace file used
-   - Remind them that the SessionStart hook will load context automatically when Claude Code starts in the new window
-
-The workspace file handles everything else:
-- Context files open as tabs (`folderOpen` task)
-- Claude Code extension is recommended
-- The SessionStart hook injects persona.md + PROFILE + MEMORY + DECISIONS + STATE
-
-## `--terminal` Mode
-
-Open the domain in a terminal Claude Code session (no IDE).
-
-1. Run via Bash:
-   ```
-   claude --append-system-prompt-file <domain-path>/persona.md
-   ```
-   Use `--session-id` with a generated UUID for deterministic session tracking if desired.
-2. Note: this launches Claude Code in the current terminal. The session inherits the domain's context via the system prompt file. The SessionStart hook will also fire and inject context files.
-
-**Important:** Terminal mode launches an interactive `claude` process. This replaces the current session. Warn the user: "This will start a new Claude session in this terminal. Continue?"
-
-## Report
-
-After launching (or if blocked by a precheck), summarize:
-- Domain: name and path
-- Viewport: cursor or terminal
-- Status: opened, or blocked (with reason and suggested fix)
+**Read the identified phase file now and follow its instructions.** Do not proceed without reading the phase file.

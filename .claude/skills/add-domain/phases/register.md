@@ -12,7 +12,7 @@ Read `domain-yaml-schema.md` for the domain.yaml schema.
 4. Add or update the domain entry under `domains:`:
    - Key: the `name` field from domain.yaml
    - `path`: the absolute path where domain.yaml was found. Apply `refs/path-normalization.md` rules.
-   - Copy all fields from domain.yaml: `repo`, `type`, `description`, `sets`, `canonical_source`, `default_branch`, `remotes`, `kit_health`, `last_touched`, plus any freeform keys
+   - Copy all fields from domain.yaml: `repo`, `type`, `description`, `sets`, `canonical_source`, `default_branch`, `remotes`, `access`, `kit_health`, `last_touched`, plus any freeform keys
    - If the domain already exists in the registry, merge: update all fields from domain.yaml, preserve any registry-only fields
 5. Rebuild the sets index (computed reverse lookup from all domain `sets` fields).
 6. Write REGISTRY.yaml with updated `generated` timestamp.

@@ -1,0 +1,11 @@
+name: container
+description: Containerised viewport with scoped access
+type: container
+
+requires:
+  - access_declarations
+  - deployment_package
+
+templates:
+  - condition: default
+    command: domain-deploy provision "{name}" --access "{access_file}"

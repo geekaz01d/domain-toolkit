@@ -1,6 +1,6 @@
 # Install Spec
 
-**Status:** Draft — expanded from seed spec, 2026-03-22
+**Status:** Draft — expanded 2026-03-22, revised 2026-03-25 (viewport profiles, config.yaml)
 **Context:** Defines the installation lifecycle for the domain-toolkit runtime on a machine. Covers deployment, symlink-based development installs, validation, and clean removal. Implements the `install-domain-toolkit` entry in `command-taxonomy.md`.
 
 ---
@@ -59,6 +59,10 @@ Source paths are relative to repo `.claude/domain-toolkit/`. Target paths are re
 | `cron/stage-transcripts.cron` | `cron/stage-transcripts.cron` | no |
 | `domain.yaml` | `domain.yaml` | no |
 | `REGISTRY.example.yaml` | `REGISTRY.example.yaml` | no |
+| `viewports/tmux.yaml` | `viewports/tmux.yaml` | no |
+| `viewports/cursor.yaml` | `viewports/cursor.yaml` | no |
+| `viewports/screen.yaml` | `viewports/screen.yaml` | no |
+| `viewports/container.yaml` | `viewports/container.yaml` | no |
 
 ### Generated files
 
@@ -83,6 +87,7 @@ Uninstall removes the PATH line (and its comment) from `~/.bashrc`. The user mus
 | Path | Reason |
 |------|--------|
 | `~/.claude/domain-toolkit/REGISTRY.yaml` | User data — accumulated domain registrations |
+| `~/.claude/domain-toolkit/config.yaml` | User configuration — viewport defaults, terminal emulator, deployment provider |
 | `~/.claude/domain-toolkit/*.log` | Runtime logs |
 | `~/.claude/domain-toolkit/.harvest-log` | Memory harvest log |
 | `~/.claude/domain-toolkit/.staged-sessions` | Transcript staging state |
@@ -255,7 +260,7 @@ Full copy deployment.
    - What will be preserved
 5. **Ask for confirmation.** Always.
 6. Execute:
-   a. Create directories: `~/.claude/domain-toolkit/{hooks,bin,cron}`, `~/.claude/hooks/`
+   a. Create directories: `~/.claude/domain-toolkit/{hooks,bin,cron,viewports}`, `~/.claude/hooks/`
    b. If switching from link mode, remove existing symlinks first.
    c. Copy each bundle file. Set executable bit where specified.
    d. Seed `REGISTRY.yaml` from `REGISTRY.example.yaml` if absent.

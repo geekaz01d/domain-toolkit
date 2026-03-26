@@ -1,0 +1,10 @@
+name: tmux
+description: Terminal multiplexer session
+
+templates:
+  - condition: in_tmux
+    command: tmux new-window -n "{name}" "cd {path} && {cmd}"
+
+  - condition: default
+    emulator: true
+    command: tmux new-session -s "{name}" "cd {path} && {cmd}"

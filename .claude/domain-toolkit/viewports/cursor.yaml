@@ -1,0 +1,10 @@
+name: cursor
+description: Cursor/VS Code IDE window
+type: ide
+
+requires:
+  - workspace_file
+
+templates:
+  - condition: default
+    command: cursor --new-window "{workspace_file}"

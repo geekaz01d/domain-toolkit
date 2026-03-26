@@ -15,6 +15,7 @@ Verify each of the following. For any missing element: if `--no-touchy` is activ
 ## Integrity checks
 
 - Pointer integrity: if `persona.md` exists, check that any referenced files in its context map actually exist
+- Access block: if domain.yaml contains an `access` section, validate its structure — `repos` entries must have `repo` (string) and `mode` (`rw` or `ro`); `mounts` entries must have `source`, `target`, and `mode`. Do NOT validate whether repos or mount paths are reachable — that's the deployment provider's job.
 
 ## PROFILE.md staleness heuristic
 

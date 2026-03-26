@@ -1,6 +1,6 @@
 # domain.yaml Schema
 
-**Status:** Draft — captured from working session 2026-03-18
+**Status:** Draft — captured 2026-03-18, revised 2026-03-25 (access declarations)
 **Context:** Defines the schema for `.claude/domain-toolkit/domain.yaml`, the machine-readable manifest that serves as the detection signal for managed domains and the source of registry metadata.
 
 ---
@@ -59,6 +59,21 @@ remotes:                         # Declared remote map. touch-domain checks actu
                                  # remotes against this and flags discrepancies.
                                  # An agent repairing a checkout has everything it needs here.
 
+# ── Access declarations (user-declared, preserved) ──────────────
+# Optional. Required for container viewports. See viewport-spec.md.
+
+access:
+  repos:                             # Repositories this domain needs access to.
+    - repo: cashflow                 # Repo name (matched against bare repos on provider).
+      mode: rw                       # rw | ro
+    - repo: cashflow-imports
+      mode: ro
+  identity: richard                  # User identity for session attribution.
+  mounts:                            # Bind mounts for non-git data.
+    - source: /mnt/user/data/finance
+      target: /data/finance
+      mode: ro
+
 # ── Derived (overwritten by touch-domain / add-domain --update) ───
 
 kit_health: yes                  # yes | no | partial
@@ -90,6 +105,19 @@ last_touched: 2026-03-18         # Date of last touch-domain run.
 | `canonical_source` | string | No | Authoritative bare repo URL. Git recovery root. |
 | `default_branch` | string | No | Expected tracking branch. Defaults to `main` if absent. |
 | `remotes` | map (name → URL) | No | Declared git remotes. `touch-domain` verifies against actual git config. |
+| `access` | map | No | Access declarations for container viewports. See below. |
+
+### Access Declarations
+
+Optional block. Required by the `container` viewport profile's `access_declarations` precheck.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `access.repos` | list of maps | Repositories this domain needs access to. Each entry has `repo` (string) and `mode` (`rw` or `ro`). |
+| `access.identity` | string | User identity for session attribution. |
+| `access.mounts` | list of maps | Bind mounts for non-git data. Each entry has `source`, `target`, and `mode` (`rw` or `ro`). |
+
+domain-toolkit declares what access is needed. The deployment package (provider) fulfills it. See `deployment-spec.md`.
 
 ### Derived
 

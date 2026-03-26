@@ -1,0 +1,10 @@
+name: screen
+description: GNU Screen session
+
+templates:
+  - condition: in_screen
+    command: screen -t "{name}" bash -c "cd {path} && {cmd}"
+
+  - condition: default
+    emulator: true
+    command: screen -S "{name}" bash -c "cd {path} && {cmd}"
