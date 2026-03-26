@@ -26,6 +26,10 @@ BUNDLE_FILES=(
   "cron/stage-transcripts.cron"
   "domain.yaml"
   "REGISTRY.example.yaml"
+  "viewports/tmux.yaml"
+  "viewports/cursor.yaml"
+  "viewports/screen.yaml"
+  "viewports/container.yaml"
 )
 
 # Which bundle files need the execute bit
@@ -51,6 +55,7 @@ PATH_COMMENT="# domain-toolkit runtime"
 # Files that are never touched by install or uninstall
 PRESERVED_PATTERNS=(
   "REGISTRY.yaml"
+  "config.yaml"
   "*.log"
   ".harvest-log"
   ".staged-sessions"
@@ -711,7 +716,7 @@ do_install() {
   echo "Installing..."
 
   # Create directories
-  mkdir -p "$INSTALL_TARGET/hooks" "$INSTALL_TARGET/bin" "$INSTALL_TARGET/cron" "$WRAPPER_DIR"
+  mkdir -p "$INSTALL_TARGET/hooks" "$INSTALL_TARGET/bin" "$INSTALL_TARGET/cron" "$INSTALL_TARGET/viewports" "$WRAPPER_DIR"
 
   # If switching modes, remove old files first
   if $switching; then
@@ -948,7 +953,7 @@ do_uninstall() {
   ok "Bundle files removed"
 
   # Remove empty directories
-  for dir in hooks bin cron; do
+  for dir in hooks bin cron viewports; do
     rmdir "$INSTALL_TARGET/$dir" 2>/dev/null || true
   done
 
